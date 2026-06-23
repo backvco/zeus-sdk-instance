@@ -180,4 +180,32 @@ export class ContainersService {
   deleteClusterLink({ container, name, branch }) {
     return this.sdk._fetch(`/v2configs/${encodeURIComponent(container)}/cluster-links`, 'DELETE', { body: { name, branch } });
   }
+
+  /**
+   * Get the container's cross-cluster overlay (mesh) DNS config.
+   *
+   * @param {object} params
+   * @param {string} params.container - Container name.
+   * @param {string} [params.branch='main'] - Config branch.
+   * @returns {Promise<object>} Overlay DNS config.
+   * @example
+   * const dns = await sdk.containers.overlayDns({ container: 'app1' });
+   */
+  overlayDns({ container, branch }) {
+    return this.sdk._fetch(`/v2configs/${encodeURIComponent(container)}/overlay/dns`, 'GET', { query: { branch } });
+  }
+
+  /**
+   * Get the container's overlay keepalive config.
+   *
+   * @param {object} params
+   * @param {string} params.container - Container name.
+   * @param {string} [params.branch='main'] - Config branch.
+   * @returns {Promise<object>} Overlay keepalive config.
+   * @example
+   * const ka = await sdk.containers.overlayKeepalive({ container: 'app1' });
+   */
+  overlayKeepalive({ container, branch }) {
+    return this.sdk._fetch(`/v2configs/${encodeURIComponent(container)}/overlay/keepalive`, 'GET', { query: { branch } });
+  }
 }

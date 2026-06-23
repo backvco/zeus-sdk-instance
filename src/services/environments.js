@@ -307,15 +307,19 @@ export class EnvironmentsService {
    * @param {object} params
    * @param {string} params.container - Container name.
    * @param {string} params.name      - Environment name.
-   * @param {string} params.action    - One of the actions above (required).
-   * @param {object} [params....]      - Action-specific body fields.
+   * @param {string} [params.action]  - One of the actions above.
+   * @param {object} [params.body]    - Explicit verbatim body — use when the
+   *   action payload has its own `name` field (profile/bucket name) that would
+   *   collide with the environment `name`.
+   * @param {object} [params....]     - Action-specific body fields (when not using `body`).
    * @returns {Promise<object>} Action-specific result.
    * @example
    * await sdk.environments.backupProfileAction({
    *   container: 'app1', name: 'dev-d00', action: 'set-default', defaultProfile: 'primary' });
+   * await sdk.environments.backupProfileAction({ container: 'app1', name: 'dev-d00', body: { action: 'upsert', name: 'primary', ... } });
    */
-  backupProfileAction({ container, name, ...body } = {}) {
-    return this.sdk._fetch(`${this._env(container, name)}/backup-profiles`, 'POST', { body });
+  backupProfileAction({ container, name, body, ...rest } = {}) {
+    return this.sdk._fetch(`${this._env(container, name)}/backup-profiles`, 'POST', { body: body ?? rest });
   }
 
   /**

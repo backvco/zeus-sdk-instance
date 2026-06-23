@@ -350,12 +350,13 @@ export class AwsService {
    * @param {string} [params.owner='self'] - AMI owner.
    * @param {string} [params.arch]      - AMI architecture filter.
    * @param {string} [params.name]      - AMI name filter.
+   * @param {AbortSignal} [params.signal] - Optional abort signal (cancel/supersede).
    * @returns {Promise<{ data: Array<object> }>}
    * @example
    * const { data } = await sdk.providers.aws.ec2({ resource: 'vpcs', region: 'us-east-2' });
    */
-  ec2({ resource, region, vpcId, owner, arch, name }) {
-    return this.sdk._fetch('/aws/ec2', 'GET', { query: { resource, region, vpcId, owner, arch, name } });
+  ec2({ resource, region, vpcId, owner, arch, name, signal } = {}) {
+    return this.sdk._fetch('/aws/ec2', 'GET', { query: { resource, region, vpcId, owner, arch, name }, signal });
   }
 
   /**

@@ -221,15 +221,19 @@ export class ProxmoxAccountsService {
    * `migrate-vm-disks`, `build-file-server`, `build-storage-server`,
    * `list-drives-enriched`, `wipe-drive`, `storcli-check`, etc.
    *
-   * @param {object} params - `{ id, action, ...actionParams }`.
-   * @param {string} params.id
-   * @param {string} params.action
+   * @param {object} params - `{ id, action, ...actionParams }`, or `{ id, body }`
+   *   when the action body has a field named `id` (e.g. a recommendation id) that
+   *   would collide with the account `id` — pass it as the explicit `body`.
+   * @param {string} params.id - Account id.
+   * @param {string} [params.action]
+   * @param {object} [params.body] - Explicit verbatim request body (overrides the rest).
    * @returns {Promise<object>} The action result (shape varies by action).
    * @example
    * await sdk.providers.proxmox.accounts.storageAction({ id:'acc1', action:'set-default', purpose:'disk', storage:'local-zfs' });
+   * await sdk.providers.proxmox.accounts.storageAction({ id:'acc1', body:{ action:'dismiss-recommendation', id:7 } });
    */
-  storageAction({ id, ...body }) {
-    return this.sdk._fetch(`${this._base(id)}/storage`, 'POST', { body });
+  storageAction({ id, body, ...rest }) {
+    return this.sdk._fetch(`${this._base(id)}/storage`, 'POST', { body: body ?? rest });
   }
 
   /**

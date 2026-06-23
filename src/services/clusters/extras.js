@@ -75,11 +75,15 @@ export class ClusterExtrasService {
    *   add-proxy-cache, delete-proxy-cache, proxy-cache-stats, proxy-cache-config,
    *   flush-proxy-cache, set-retention, clear-retention, set-project-quota,
    *   set-proxy-speed, gc-get, gc-set, gc-run, gc-history. See the route for fields.
+   * @param {object} [params.body] - Explicit verbatim body — use when the action
+   *   payload has its own `name` field (e.g. an endpoint name) that would collide
+   *   with the cluster `name`.
    * @returns {Promise<object>} Shape varies by action (mostly Harbor objects pass-through).
    * @example await sdk.clusters.extras.harborReplicationAction({ container:'app1', name:'z-01', action:'ping-endpoint', id:3 });
+   * @example await sdk.clusters.extras.harborReplicationAction({ container:'app1', name:'z-01', body:{ action:'add-endpoint', name:'peer', url:'...' } });
    */
-  harborReplicationAction({ container, name, branch, ...body }) {
-    return this.sdk._fetch(`${this._base(container, name)}/harbor-replication`, 'POST', { body, query: { branch } });
+  harborReplicationAction({ container, name, branch, body, ...rest }) {
+    return this.sdk._fetch(`${this._base(container, name)}/harbor-replication`, 'POST', { body: body ?? rest, query: { branch } });
   }
 
   /**

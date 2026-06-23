@@ -87,16 +87,23 @@ export class AmiRecipesService {
 
   /**
    * Save (create-or-update) a recipe's definition. System recipes are read-only.
+   * The route persists the whole posted body, so the editor passes the recipe
+   * plus its per-step / asset contents and README.
    *
    * @param {object} params
-   * @param {string} params.name    - Recipe name.
-   * @param {object} params.recipe  - Recipe fields to persist (the rest of the object is the body).
+   * @param {string} params.name           - Recipe name.
+   * @param {object} params.recipe         - Recipe definition object.
+   * @param {object} [params.stepContents] - Per-step script contents.
+   * @param {object} [params.assetContents]- Asset file contents.
+   * @param {string} [params.readme]       - README markdown.
    * @returns {Promise<{ saved: object }>}
    * @example
-   * await sdk.amiRecipes.save({ name: 'my-base', recipe: { description: 'updated', arch: 'arm64' } });
+   * await sdk.amiRecipes.save({ name: 'my-base', recipe, stepContents, assetContents, readme });
    */
-  save({ name, recipe }) {
-    return this.sdk._fetch(`/ami-recipes/${encodeURIComponent(name)}`, 'PUT', { body: recipe });
+  save({ name, recipe, stepContents, assetContents, readme }) {
+    return this.sdk._fetch(`/ami-recipes/${encodeURIComponent(name)}`, 'PUT', {
+      body: { recipe, stepContents, assetContents, readme },
+    });
   }
 
   /**

@@ -90,12 +90,13 @@ export class ClustersCoreService {
    * @param {string} params.container
    * @param {string} params.name
    * @param {string} [params.branch='main']
+   * @param {boolean|string} [params.refresh] - Force a live re-fetch (skip cache).
    * @returns {Promise<{ sg: object }>}
    * @example
    * const { sg } = await sdk.clusters.primarySg({ container:'app1', name:'z-01' });
    */
-  primarySg({ container, name, branch }) {
-    return this.sdk._fetch(`${this._base(container, name)}/primary-sg`, 'GET', { query: { branch } });
+  primarySg({ container, name, branch, refresh }) {
+    return this.sdk._fetch(`${this._base(container, name)}/primary-sg`, 'GET', { query: { branch, refresh } });
   }
 
   /**

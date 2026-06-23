@@ -233,6 +233,23 @@ export class AuthService {
    */
   deleteUser({ id }) { return this.sdk._fetch(`/settings/auth/users/${encodeURIComponent(id)}`, 'DELETE'); }
 
+  /**
+   * Generic user mutation — dispatches any `{ action, ... }` to the user-[id]
+   * PUT endpoint. Convenience for UIs that drive several actions through one
+   * handler; the named methods above (approveUser, setRole, …) are preferred
+   * when the action is known.
+   *
+   * @param {object} params
+   * @param {string} params.id     - User id.
+   * @param {string} params.action - Action name (approve, set-role, set-status, …).
+   * @param {object} [params....]  - Action-specific fields.
+   * @returns {Promise<{ user: object } | { ok: true }>}
+   * @route PUT /api/settings/auth/users/[id]
+   * @example
+   * await sdk.settings.auth.updateUser({ id: 'usr-1', action: 'set-role', role: 'admin' });
+   */
+  updateUser({ id, ...body }) { return this._userAction(id, body); }
+
   /** @private — shared PUT for the user-[id] action endpoint. */
   _userAction(id, body) {
     return this.sdk._fetch(`/settings/auth/users/${encodeURIComponent(id)}`, 'PUT', { body });

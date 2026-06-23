@@ -278,13 +278,16 @@ export class K8sService {
    * @param {Array}  [params.taints]   - For 'set-taints': taint objects to apply.
    * @param {{namespace?:string,name:string}} [params.debugPod] - For 'delete-debug-pod'.
    * @param {string} [params.providerID] - For 'terminate-instance': the node's providerID.
+   * @param {number} [params.gracePeriodSeconds] - For 'delete'/'drain': eviction grace period.
+   * @param {boolean} [params.drainBeforeDelete]  - For 'delete': drain the node first.
+   * @param {boolean} [params.force]               - For 'delete'/'drain': force past PDBs/standalone pods.
    * @returns {Promise<{ ok: true, message: string, [extra]: * }>} Shape varies by action.
    * @example
    * await sdk.k8s.nodeAction({ cluster: 'z-01', name: 'ip-10-0-1-5', action: 'cordon' });
    */
-  nodeAction({ cluster, name, action, taints, debugPod, providerID } = {}) {
+  nodeAction({ cluster, name, action, taints, debugPod, providerID, gracePeriodSeconds, drainBeforeDelete, force } = {}) {
     return this.sdk._fetch('/k8s/nodes/action', 'POST', {
-      body: { cluster, name, action, taints, debugPod, providerID },
+      body: { cluster, name, action, taints, debugPod, providerID, gracePeriodSeconds, drainBeforeDelete, force },
     });
   }
 

@@ -188,11 +188,12 @@ export class ClusterSecurityService {
    * @param {string} params.name
    * @param {string} [params.prefix=''] - Role-name prefix to test.
    * @param {string} [params.branch='main']
+   * @param {AbortSignal} [params.signal] - Optional abort signal (timeout/cancel).
    * @returns {Promise<{ scope, principal, canCreateZeusRole, canCreateAnyRole, account, expansion }>}
    * @example
    * const cap = await sdk.clusters.security.zeusCapabilities({ container:'app1', name:'z-01' });
    */
-  zeusCapabilities({ container, name, prefix, branch }) {
-    return this.sdk._fetch(`${this._base(container, name)}/iam/zeus-capabilities`, 'GET', { query: { prefix, branch } });
+  zeusCapabilities({ container, name, prefix, branch, signal }) {
+    return this.sdk._fetch(`${this._base(container, name)}/iam/zeus-capabilities`, 'GET', { query: { prefix, branch }, signal });
   }
 }

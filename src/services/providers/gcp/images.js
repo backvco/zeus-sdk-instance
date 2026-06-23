@@ -211,14 +211,15 @@ export class GcpImagesService {
    * @param {string} [params.subnetwork]       - Subnetwork override.
    * @param {string} [params.serviceAccount]   - Service account override.
    * @param {number} [params.maxRuntimeMinutes] - Max runtime.
+   * @param {boolean} [params.serialPortEnabled] - Enable serial-port logging on the build VM.
+   * @param {object} [params.body] - Explicit verbatim body (overrides the named fields)
+   *   for callers that assemble the full build payload themselves.
    * @returns {Promise<{ plan: object }>}
    * @example
    * const { plan } = await sdk.providers.gcp.images.plan({ name: 'gke-base' });
    */
-  plan({ name, accountId, zone, machineType, network, subnetwork, serviceAccount, maxRuntimeMinutes }) {
-    return this.sdk._fetch(`${this._base(name)}/plan`, 'POST', {
-      body: { accountId, zone, machineType, network, subnetwork, serviceAccount, maxRuntimeMinutes },
-    });
+  plan({ name, body, ...rest }) {
+    return this.sdk._fetch(`${this._base(name)}/plan`, 'POST', { body: body ?? rest });
   }
 
   /**
