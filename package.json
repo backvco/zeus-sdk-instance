@@ -1,0 +1,29 @@
+{
+  "name": "zeus-sdk-instance",
+  "version": "0.1.0",
+  "description": "JavaScript client SDK for the Zeus instance API (cluster/environment/infrastructure management). Works in the browser (session-cookie auth) and Node.js (service-token / dev-key auth).",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "src",
+    "docs",
+    "README.md"
+  ],
+  "keywords": [
+    "zeus",
+    "kubernetes",
+    "eks",
+    "gke",
+    "k3s",
+    "sdk",
+    "api-client"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "test": "echo 'no tests yet'"
+  },
+  "dependencies": {}
+}
