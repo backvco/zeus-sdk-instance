@@ -290,7 +290,7 @@ export class InfrastructureService {
    *   clusterName: 'z-01', values: {...}
    * });
    * // Reachability-critical retry
-   * import { ReachabilityAckRequiredError } from 'zeus-sdk-instance';
+   * import { ReachabilityAckRequiredError } from '@zeusk8s/sdk-instance';
    * try {
    *   await sdk.infrastructure.helm({ container: 'app1', action: 'upgrade', addonName: 'netbird-management', clusterName: 'z-01', values: {...} });
    * } catch (e) {

@@ -11,13 +11,13 @@
  *
  * Browser (the page is already served from the instance host — cookie auth):
  *
- *   import { ZeusInstanceSDK } from 'zeus-sdk-instance';
+ *   import { ZeusInstanceSDK } from '@zeusk8s/sdk-instance';
  *   const sdk = new ZeusInstanceSDK();                  // baseURL defaults to '/api'
  *   const { containers } = await sdk.containers.list();
  *
  * Node / scripts / LLM tools (point at an instance, authenticate with a token):
  *
- *   import { ZeusInstanceSDK } from 'zeus-sdk-instance';
+ *   import { ZeusInstanceSDK } from '@zeusk8s/sdk-instance';
  *   const sdk = new ZeusInstanceSDK({
  *     instance: 'acme',                  // first hostname label; unique per customer
  *     rootUrl:  'my-dev.zeusk8s.com',    // default 'my.zeusk8s.com' (prod); or set ZEUS_ROOT_URL

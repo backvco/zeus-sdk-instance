@@ -31,7 +31,7 @@ import { openStream } from './stream.js';
  *             or `devKey` (the `DEV_API_KEY` → `x-dev-key` header).
  *
  * @example
- * import { BaseSDK } from 'zeus-sdk-instance';
+ * import { BaseSDK } from '@zeusk8s/sdk-instance';
  * const client = new BaseSDK({ instance: 'acme', rootUrl: 'my-dev.zeusk8s.com', devKey: '...' });
  * const cfg = await client._fetch('/v2configs/config', 'GET');
  */

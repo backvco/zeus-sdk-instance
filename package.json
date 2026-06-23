@@ -1,19 +1,24 @@
 {
-  "name": "zeus-sdk-instance",
+  "name": "@zeusk8s/sdk-instance",
   "version": "0.1.0",
-  "description": "JavaScript client SDK for the Zeus instance API (cluster/environment/infrastructure management). Works in the browser (session-cookie auth) and Node.js (service-token / dev-key auth).",
+  "description": "JavaScript client SDK for the Zeus instance API (cluster/environment/infrastructure management). Works in the browser (session-cookie auth) and Node.js (service-token auth).",
   "type": "module",
   "main": "src/index.js",
   "exports": {
-    ".": "./src/index.js"
+    ".": "./src/index.js",
+    "./base": "./src/base.js",
+    "./errors": "./src/errors.js",
+    "./stream": "./src/stream.js"
   },
   "files": [
     "src",
     "docs",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "keywords": [
     "zeus",
+    "zeusk8s",
     "kubernetes",
     "eks",
     "gke",
@@ -21,7 +26,19 @@
     "sdk",
     "api-client"
   ],
+  "author": "Zeus Team",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/backvco/zeus-sdk-instance.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
   "scripts": {
     "test": "echo 'no tests yet'"
   },

@@ -1,30 +1,30 @@
-# zeus-sdk-instance
+# @zeusk8s/sdk-instance
 
 JavaScript client SDK for the **Zeus instance API** — the API of a deployed Zeus
 app that manages your Kubernetes clusters (EKS / GKE / k3s / Proxmox),
 environments, services, infrastructure add-ons, networking, and cloud provider
 accounts.
 
-> This is distinct from `zeus-sdk` (the Zeus **Console** API, which handles
+> This is distinct from `@zeusk8s/sdk` (the Zeus **Console** API, which handles
 > cross-instance billing/licensing). Use **this** package to drive a single Zeus
 > instance.
 
 Works in the **browser** (session-cookie auth, same-origin) and in **Node.js /
-scripts / LLM tools** (service-token or dev-key auth, pointed at any instance).
+scripts / LLM tools** (service-token auth, pointed at any instance).
 
 ---
 
 ## Install
 
 ```bash
-npm install zeus-sdk-instance
+npm install @zeusk8s/sdk-instance
 ```
 
 Local development against the Zeus monorepo links it directly:
 
 ```jsonc
 // zeus/package.json
-"dependencies": { "zeus-sdk-instance": "file:../zeus-sdk-instance" }
+"dependencies": { "@zeusk8s/sdk-instance": "file:../sdks/zeus-sdk-instance" }
 ```
 
 ---
@@ -55,7 +55,7 @@ option or, in Node, the `ZEUS_ROOT_URL` environment variable (e.g.
 ### Browser (inside the Zeus app or any page on the instance host)
 
 ```js
-import { ZeusInstanceSDK } from 'zeus-sdk-instance';
+import { ZeusInstanceSDK } from '@zeusk8s/sdk-instance';
 
 const sdk = new ZeusInstanceSDK();             // baseURL → '/api', cookie auth
 const { containers } = await sdk.containers.list();
@@ -65,7 +65,7 @@ const { clusters }   = await sdk.clusters.list({ container: 'app1' });
 ### Node / scripts / LLM tools
 
 ```js
-import { ZeusInstanceSDK } from 'zeus-sdk-instance';
+import { ZeusInstanceSDK } from '@zeusk8s/sdk-instance';
 
 const sdk = new ZeusInstanceSDK({
   instance: 'acme',
@@ -84,7 +84,6 @@ const { clusters } = await sdk.clusters.list({ container: 'app1' });
 |---|---|---|
 | Browser | nothing — session cookie | `credentials: 'include'` |
 | Node (service token) | `new ZeusInstanceSDK({ token: 'zeus_...' })` or `sdk.setToken(...)` | `Authorization: Bearer <token>` |
-| Node (dev key) | `new ZeusInstanceSDK({ devKey: '...' })` | `x-dev-key: <key>` |
 
 You can also inject a custom `fetch` (e.g. SvelteKit's `event.fetch` for SSR):
 `new ZeusInstanceSDK({ baseURL: '/api', fetch: event.fetch })`.
@@ -104,7 +103,7 @@ const { accounts, defaultAccountId } = await sdk.providers.aws.accounts.list();
 Non-2xx responses **throw** a `ZeusApiError`:
 
 ```js
-import { ZeusApiError, ReachabilityAckRequiredError } from 'zeus-sdk-instance';
+import { ZeusApiError, ReachabilityAckRequiredError } from '@zeusk8s/sdk-instance';
 
 try {
   await sdk.clusters.get({ container: 'app1', name: 'nope' });
