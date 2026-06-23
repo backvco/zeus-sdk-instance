@@ -109,14 +109,18 @@ export class BaseSDK {
    * @param {*}      [opts.body]    - Request body, JSON-serialised automatically.
    * @param {object} [opts.query]   - Query params. Array values become repeated keys.
    * @param {object} [opts.headers] - Extra headers merged over defaults.
+   * @param {AbortSignal} [opts.signal] - Optional abort signal (timeouts / cancellation).
    * @returns {Promise<*>} Parsed JSON (or text) response body.
    *
    * @example
    * const { containers } = await sdk._fetch('/v2configs/containers', 'GET');
    * const created = await sdk._fetch('/v2configs/containers', 'POST', { body: { name: 'app2' } });
    * const slots = await sdk._fetch('/network/plans/main/slots', 'GET', { query: { region: 'us-east-2' } });
+   * // with cancellation:
+   * const ac = new AbortController();
+   * sdk._fetch('/aws/ec2', 'GET', { query: { resource: 'vpcs' }, signal: ac.signal });
    */
-  async _fetch(endpoint, method, { body, query, headers = {} } = {}) {
+  async _fetch(endpoint, method, { body, query, headers = {}, signal } = {}) {
     const url = this._url(endpoint, query);
     const h = this._authHeaders(headers);
     const hasBody = body !== undefined && method.toUpperCase() !== 'GET';
@@ -127,6 +131,7 @@ export class BaseSDK {
       headers: h,
       credentials: 'include',
       body: hasBody ? (typeof body === 'string' ? body : JSON.stringify(body)) : undefined,
+      signal,
     });
 
     const ct = res.headers.get('content-type') || '';
@@ -144,6 +149,38 @@ export class BaseSDK {
       );
     }
     return parse();
+  }
+
+  /**
+   * Low-level streaming request — returns the raw `fetch` Response (auth +
+   * credentials applied), for consumers that run their own SSE/reader loop and
+   * need full control over status handling (e.g. the shared run-store, which
+   * treats 204/404 as "no live run" and detects mid-stream interruptions).
+   * Prefer {@link _stream} for new code.
+   *
+   * @param {string} path - A full "/api/..." path or absolute URL (used as-is),
+   *   or an endpoint relative to baseURL.
+   * @param {object} [opts]
+   * @param {string} [opts.method='GET']
+   * @param {*}      [opts.body]
+   * @param {object} [opts.headers]
+   * @returns {Promise<Response>} The raw fetch Response.
+   *
+   * @example
+   * const res = await sdk.requestStream('/api/runs/stream?domain=cluster-apply&scope=app1', {});
+   * if (res.ok && res.body) consumeMyOwnReader(res.body);
+   */
+  requestStream(path, { method = 'GET', body, headers = {} } = {}) {
+    const url = (/^https?:\/\//.test(path) || path.startsWith('/api')) ? path : `${this.baseURL}${path}`;
+    const h = this._authHeaders(headers);
+    const hasBody = body !== undefined && method.toUpperCase() !== 'GET';
+    if (hasBody && !h['Content-Type'] && !h['content-type']) h['Content-Type'] = 'application/json';
+    return this.fetchImpl(url, {
+      method,
+      headers: h,
+      credentials: 'include',
+      body: hasBody ? (typeof body === 'string' ? body : JSON.stringify(body)) : undefined,
+    });
   }
 
   /**
