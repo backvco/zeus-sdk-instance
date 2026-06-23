@@ -184,6 +184,28 @@ export class BaseSDK {
   }
 
   /**
+   * Create a native `EventSource` for a GET SSE endpoint, with credentials
+   * (cookies) enabled and the URL resolved against baseURL. For browser
+   * consumers that manage their own `onmessage`/`onerror`/reconnect. Browser
+   * only (EventSource is not built into Node). Prefer {@link _stream} for new
+   * code; this exists so existing `new EventSource('/api/...')` call sites can
+   * route through the SDK with a minimal change.
+   *
+   * @param {string} path - Full "/api/..." path or absolute URL (used as-is),
+   *   or an endpoint relative to baseURL.
+   * @returns {EventSource}
+   *
+   * @example
+   * const es = sdk.eventSource('/api/k8s/watch?resource=pods&cluster=z-02');
+   * es.onmessage = (e) => handle(JSON.parse(e.data));
+   * // later: es.close();
+   */
+  eventSource(path) {
+    const url = (/^https?:\/\//.test(path) || path.startsWith('/api')) ? path : `${this.baseURL}${path}`;
+    return new EventSource(url, { withCredentials: true });
+  }
+
+  /**
    * Open a Server-Sent-Events stream. Streaming service methods call this.
    * See {@link openStream} for the returned handle's shape (async-iterable +
    * `onOpen/onMessage/onError/onDone` callbacks + `close()`).
