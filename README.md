@@ -157,7 +157,7 @@ when unnamed), `data` is the JSON-parsed payload (falls back to the raw string),
 | Namespace | Covers | Reference |
 |---|---|---|
 | `sdk.auth` | login, session, user setup, password reset, directory | [docs/auth.md](docs/auth.md) |
-| `sdk.containers` | workspaces (config, list, create, delete) | — |
+| `sdk.containers` | workspaces (config, list, create, delete, settings, cluster-links) | [docs/containers.md](docs/containers.md) |
 | `sdk.clusters` | clusters + `.nodegroups .security .upgrade .storage .certs .overlay .extras` | [docs/clusters.md](docs/clusters.md) |
 | `sdk.services` | services + `.identities .registry` | [docs/services.md](docs/services.md) |
 | `sdk.environments` | environments, DNS, backup profiles | [docs/environments.md](docs/environments.md) |
@@ -173,7 +173,7 @@ when unnamed), `data` is the JSON-parsed payload (falls back to the raw string),
 | `sdk.amiRecipes` | AMI build recipes + builds (SSE) | [docs/ami-recipes.md](docs/ami-recipes.md) |
 | `sdk.settings` | `.auth .builders .github .mail .npmTokens .serviceTokens .pricing .system` | [docs/settings.md](docs/settings.md) |
 | `sdk.help` | assistant chat (SSE) + sessions + settings | [docs/help.md](docs/help.md) |
-| `sdk.system` | egress/whoami IP, tooling, pricing, presets, geocode, fs browse | — |
+| `sdk.system` | egress/whoami IP, tooling, pricing, presets, geocode, fs browse | [docs/system.md](docs/system.md) |
 | `sdk.agent` | bare-metal / Proxmox agent enroll + rekey | [docs/agent.md](docs/agent.md) |
 | `sdk.providers.aws` | accounts, regions, VPC adopt, S3, IAM, Route53, setup | [docs/providers-aws.md](docs/providers-aws.md) |
 | `sdk.providers.gcp` | accounts/projects, images (SSE), machine types, workload identity | [docs/providers-gcp.md](docs/providers-gcp.md) |
