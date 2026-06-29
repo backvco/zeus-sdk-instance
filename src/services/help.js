@@ -124,6 +124,52 @@ export class HelpService {
 	}
 
 	/**
+	 * List users a session is shared with (owner only).
+	 *
+	 * @param {object} params
+	 * @param {string} params.id - Session id.
+	 * @returns {Promise<{ shares: Array<{ userId: string, sharedAt: number|null }> }>}
+	 * @example
+	 * const { shares } = await sdk.help.listShares({ id: 'c1' });
+	 */
+	listShares({ id }) {
+		return this.sdk._fetch(`/help/sessions/${encodeURIComponent(id)}/shares`, 'GET');
+	}
+
+	/**
+	 * Share a session with a user by email (owner only).
+	 *
+	 * @param {object} params
+	 * @param {string} params.id    - Session id.
+	 * @param {string} params.email - Email of the user to share with.
+	 * @returns {Promise<{ ok: true, userId: string, email: string, fullName: string }>}
+	 * @example
+	 * await sdk.help.shareSession({ id: 'c1', email: 'colleague@example.com' });
+	 */
+	shareSession({ id, email }) {
+		return this.sdk._fetch(`/help/sessions/${encodeURIComponent(id)}/shares`, 'POST', {
+			body: { email }
+		});
+	}
+
+	/**
+	 * Remove a share (owner only). Idempotent.
+	 *
+	 * @param {object} params
+	 * @param {string} params.id     - Session id.
+	 * @param {string} params.userId - User id to remove.
+	 * @returns {Promise<{ ok: true }>}
+	 * @example
+	 * await sdk.help.unshareSession({ id: 'c1', userId: 'u_abc' });
+	 */
+	unshareSession({ id, userId }) {
+		return this.sdk._fetch(
+			`/help/sessions/${encodeURIComponent(id)}/shares/${encodeURIComponent(userId)}`,
+			'DELETE'
+		);
+	}
+
+	/**
 	 * Get UI-safe assistant settings — API keys reduced to `{ hasKey, keyPreview }`.
 	 *
 	 * @returns {Promise<{
