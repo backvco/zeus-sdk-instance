@@ -27,13 +27,16 @@ export class ServiceTokensService {
    *
    * @param {object} params
    * @param {string} params.name
+   * @param {string[]} [params.policies]  e.g. ['mcp:read'] or ['mcp:read','mcp:write']
    * @returns {Promise<{ token: { id: string, name: string, createdAt: string, plaintext: string } }>}
    * @route POST /api/settings/service-tokens
    * @example
-   * const { token } = await sdk.settings.serviceTokens.create({ name: 'sdk' });
+   * const { token } = await sdk.settings.serviceTokens.create({ name: 'Claude Desktop', policies: ['mcp:read'] });
    * // token.plaintext → store it now; it won't be shown again in the list.
    */
-  create({ name }) { return this.sdk._fetch('/settings/service-tokens', 'POST', { body: { name } }); }
+  create({ name, policies }) {
+    return this.sdk._fetch('/settings/service-tokens', 'POST', { body: { name, policies } });
+  }
 
   /**
    * Reveal a token's full plaintext value.
