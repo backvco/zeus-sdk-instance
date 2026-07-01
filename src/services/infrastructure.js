@@ -303,14 +303,14 @@ export class InfrastructureService {
     container, action, addonName, clusterName, kubeContext, values, version, revision,
     targetNamespace, targetReleaseName, environmentName, deploymentName, liveOnly,
     pvcName, newSize, pvcNames, backupProfile, restoreProfile,
-    acknowledgeReachabilityCritical, branch,
+    acknowledgeReachabilityCritical, branch, purgeExtras,
   }) {
     return this.sdk._fetch(`${this._base(container)}/helm`, 'POST', {
       body: {
         action, addonName, clusterName, kubeContext, values, version, revision,
         targetNamespace, targetReleaseName, environmentName, deploymentName, liveOnly,
         pvcName, newSize, pvcNames, backupProfile, restoreProfile,
-        acknowledgeReachabilityCritical, branch,
+        acknowledgeReachabilityCritical, branch, purgeExtras,
       },
     });
   }
