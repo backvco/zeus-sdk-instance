@@ -208,4 +208,19 @@ export class ContainersService {
   overlayKeepalive({ container, branch }) {
     return this.sdk._fetch(`/v2configs/${encodeURIComponent(container)}/overlay/keepalive`, 'GET', { query: { branch } });
   }
+
+  /**
+   * Mint a single-use, short-lived device-trust token and return a ready-to-copy
+   * `curl | sh` install command (+ Windows PowerShell one-liner) that installs
+   * Zeus's mesh CA into the caller's device trust store.
+   *
+   * @param {object} params
+   * @param {string} params.container - Container name.
+   * @returns {Promise<{ command: string, powershellCommand: string, expiresAt: number }>}
+   * @example
+   * const { command } = await sdk.containers.meshCaInstallCommand({ container: 'app1' });
+   */
+  meshCaInstallCommand({ container }) {
+    return this.sdk._fetch(`/v2configs/${encodeURIComponent(container)}/mesh-ca/install-command`, 'POST', {});
+  }
 }

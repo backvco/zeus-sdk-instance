@@ -85,6 +85,77 @@ export class ClusterOverlayService {
   }
 
   /**
+   * List real (non-Zeus-owned) NetBird groups — e.g. device groups — that can
+   * be granted network/DNS access to this cluster. Read-only.
+   * @param {object} params - container, name, connection? (def 'overlay'), branch.
+   * @returns {Promise<{ groups: Array<{ id, name, peerCount }> }>}
+   * @example const { groups } = await sdk.clusters.overlay.netbirdGroups({ container:'app1', name:'z-01' });
+   */
+  netbirdGroups({ container, name, connection, branch }) {
+    return this.sdk._fetch(`${this._base(container, name)}/overlay/netbird-groups`, 'GET', { query: { connection, branch } });
+  }
+
+  /**
+   * Get the external-group (device group) NETWORK access grants for this cluster.
+   * @param {object} params - container, name, connection? (def 'overlay'), branch.
+   * @returns {Promise<{ access: Array<{ id, enabled, group, to, ports }> }>}
+   * @example const { access } = await sdk.clusters.overlay.groupAccess({ container:'app1', name:'z-01' });
+   */
+  groupAccess({ container, name, connection, branch }) {
+    return this.sdk._fetch(`${this._base(container, name)}/overlay/access-groups`, 'GET', { query: { connection, branch } });
+  }
+
+  /**
+   * Grant an external NetBird group NETWORK access into this cluster. One-directional only.
+   * @param {object} params - container, name + body: group (required), ports?, protocol?, connection? (def 'overlay'), branch?.
+   * @returns {Promise<{ ok, policy: { id, name } }>}
+   * @example await sdk.clusters.overlay.grantGroupAccess({ container:'app1', name:'z-01', group:'BACKV' });
+   */
+  grantGroupAccess({ container, name, ...body }) {
+    return this.sdk._fetch(`${this._base(container, name)}/overlay/access-groups`, 'POST', { body });
+  }
+
+  /**
+   * Revoke an external NetBird group's NETWORK access to this cluster.
+   * @param {object} params - container, name, connection? (def 'overlay'), branch, group (required), ports? (csv string).
+   * @returns {Promise<{ ok, deleted }>}
+   * @example await sdk.clusters.overlay.revokeGroupAccess({ container:'app1', name:'z-01', group:'BACKV' });
+   */
+  revokeGroupAccess({ container, name, connection, branch, group, ports }) {
+    return this.sdk._fetch(`${this._base(container, name)}/overlay/access-groups`, 'DELETE', { query: { connection, branch, group, ports } });
+  }
+
+  /**
+   * Get the external-group DNS access grants for this cluster (who can resolve `*.<meshDomain>`).
+   * @param {object} params - container, name, connection? (def 'overlay'), branch.
+   * @returns {Promise<{ access: Array<{ group, to }> }>}
+   * @example const { access } = await sdk.clusters.overlay.dnsAccess({ container:'app1', name:'z-01' });
+   */
+  dnsAccess({ container, name, connection, branch }) {
+    return this.sdk._fetch(`${this._base(container, name)}/overlay/dns-groups`, 'GET', { query: { connection, branch } });
+  }
+
+  /**
+   * Grant an external NetBird group DNS access to this cluster's mesh domain.
+   * @param {object} params - container, name + body: group (required), connection? (def 'overlay'), branch?.
+   * @returns {Promise<{ ok }>}
+   * @example await sdk.clusters.overlay.grantDnsAccess({ container:'app1', name:'z-01', group:'BACKV' });
+   */
+  grantDnsAccess({ container, name, ...body }) {
+    return this.sdk._fetch(`${this._base(container, name)}/overlay/dns-groups`, 'POST', { body });
+  }
+
+  /**
+   * Revoke an external NetBird group's DNS access to this cluster.
+   * @param {object} params - container, name, connection? (def 'overlay'), branch, group (required).
+   * @returns {Promise<{ ok, revoked }>}
+   * @example await sdk.clusters.overlay.revokeDnsAccess({ container:'app1', name:'z-01', group:'BACKV' });
+   */
+  revokeDnsAccess({ container, name, connection, branch, group }) {
+    return this.sdk._fetch(`${this._base(container, name)}/overlay/dns-groups`, 'DELETE', { query: { connection, branch, group } });
+  }
+
+  /**
    * Probe overlay peer reachability (non-streaming snapshot).
    * @param {object} params - container, name.
    * @returns {Promise<{ ok, peers, source?, ageS? }>}
