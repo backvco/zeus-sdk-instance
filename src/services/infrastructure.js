@@ -315,6 +315,28 @@ export class InfrastructureService {
     });
   }
 
+  // ─── Pending applies (apply queue) ────────────────────────────────────────
+
+  /**
+   * List the cluster-scoped add-ons on a cluster whose stored desired-config
+   * intent (addonConfigs[x].savedValues) drifts from the live helm release —
+   * i.e. what's waiting to be applied. Computed on demand, per cluster.
+   *
+   * @param {object} params
+   * @param {string} params.container   - Container name.
+   * @param {string} params.cluster     - Cluster name.
+   * @param {string} [params.addon]     - Filter to a single add-on.
+   * @param {string} [params.branch]    - Config branch (default 'main').
+   * @returns {Promise<{ pending: Array<{ addonName: string, scope: 'cluster', cluster: string, namespace: string, releaseName: string, driftCount: number, changedKeys: string[] }> }>}
+   * @example
+   * const { pending } = await sdk.infrastructure.pendingApplies({ container: 'app1', cluster: 'z-01' });
+   */
+  pendingApplies({ container, cluster, addon, branch }) {
+    return this.sdk._fetch(`/v2configs/${encodeURIComponent(container)}/pending-applies`, 'GET', {
+      query: { cluster, addon, branch },
+    });
+  }
+
   // ─── Rollout ──────────────────────────────────────────────────────────────
 
   /**
