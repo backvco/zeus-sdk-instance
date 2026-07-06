@@ -55,21 +55,27 @@ export class ProxmoxSitesService {
   }
 
   /**
-   * Update a site, or mark it default (pass `action:'set-default'`).
+   * Update a site, mark it default (pass `action:'set-default'`), or set its
+   * opt-in host-auto-recovery policy (pass `autoRecover`).
    *
    * @param {object} params
    * @param {string} params.siteId
    * @param {string} [params.action] - `'set-default'` to make this the default site.
    * @param {string} [params.alias]
    * @param {string} [params.displayName]
-   * @returns {Promise<{ site: object, defaulted?: boolean }>}
+   * @param {{ enabled: boolean, afterMinutes?: number }} [params.autoRecover] - When set,
+   *   patches ONLY the auto-recover policy (ignores alias/displayName/action). Off by
+   *   default; when enabled, the health daemon auto-marks a DOWN host failed once it's
+   *   been down longer than `afterMinutes` (default 15).
+   * @returns {Promise<{ site: object, defaulted?: boolean, autoRecover?: object }>}
    * @example
    * await sdk.providers.proxmox.sites.update({ siteId: 'site1', displayName: 'Indy DC 2' });
    * await sdk.providers.proxmox.sites.update({ siteId: 'site1', action: 'set-default' });
+   * await sdk.providers.proxmox.sites.update({ siteId: 'site1', autoRecover: { enabled: true, afterMinutes: 20 } });
    */
-  update({ siteId, action, alias, displayName }) {
+  update({ siteId, action, alias, displayName, autoRecover }) {
     return this.sdk._fetch(`/providers/proxmox/sites/${this._s(siteId)}`, 'PUT', {
-      body: { action, alias, displayName },
+      body: { action, alias, displayName, autoRecover },
     });
   }
 
@@ -329,6 +335,41 @@ export class ProxmoxSitesService {
    */
   updateHostAgent({ siteId, agentId }) {
     return this.sdk._fetch(`/providers/proxmox/sites/${this._s(siteId)}/hosts/${this._a(agentId)}/update`, 'POST');
+  }
+
+  /**
+   * Full host-down incident picture: host-health state + per-impacted-cluster
+   * live detail (NotReady nodes, pods pending on spread/affinity vs. other
+   * reasons, pods stuck Terminating on the host's nodes, stranded local-path
+   * PVCs, control-plane/etcd quorum exposure). Degraded clusters return
+   * partial data with per-section `errors` rather than failing the request.
+   *
+   * @param {object} params
+   * @param {string} params.siteId
+   * @param {string} params.agentId
+   * @returns {Promise<{ agentId: string, siteId: string, hostname: string, state: string, since: string, quorumExposed: boolean, clusters: Array<object> }>}
+   * @example
+   * const incident = await sdk.providers.proxmox.sites.hostIncident({ siteId: 'site1', agentId: 'ag1' });
+   */
+  hostIncident({ siteId, agentId }) {
+    return this.sdk._fetch(`/providers/proxmox/sites/${this._s(siteId)}/hosts/${this._a(agentId)}/incident`, 'GET');
+  }
+
+  /**
+   * Preview the exact "Mark host failed" action list for a down host: per
+   * impacted cluster, Node objects to delete, etcd members to remove,
+   * orphaned local-path PVCs (and whether they'll be deleted), VM records
+   * to mark failed. Render this verbatim before the destructive apply.
+   *
+   * @param {object} params
+   * @param {string} params.siteId
+   * @param {string} params.agentId
+   * @returns {Promise<object>} preview payload — see host-failed.js `previewMarkHostFailed`.
+   * @example
+   * const preview = await sdk.providers.proxmox.sites.markHostFailedPreview({ siteId: 'site1', agentId: 'ag1' });
+   */
+  markHostFailedPreview({ siteId, agentId }) {
+    return this.sdk._fetch(`/providers/proxmox/sites/${this._s(siteId)}/hosts/${this._a(agentId)}/mark-failed`, 'GET');
   }
 
   /**
