@@ -60,6 +60,7 @@
  *   sdk.help            — assistant chat (SSE) + sessions + settings
  *   sdk.system          — egress/whoami IP, tooling, pricing, presets, geocode, fs browse
  *   sdk.agent           — bare-metal/proxmox agent enroll/rekey
+ *   sdk.replication     — MySQL InnoDB ClusterSet replication board (discover/status/setMetrics)
  *   sdk.providers.aws   — AWS accounts, regions, VPC adopt, S3, IAM, Route53, setup
  *   sdk.providers.gcp   — GCP accounts/projects, images(SSE), machine types, workload identity
  *   sdk.providers.proxmox — Proxmox accounts, sites, clusters, connect (lots of SSE)
@@ -89,6 +90,7 @@ import { SettingsService } from './services/settings.js';
 import { HelpService } from './services/help.js';
 import { SystemService } from './services/system.js';
 import { AgentService } from './services/agent.js';
+import { ReplicationService } from './services/replication.js';
 import { AwsService } from './services/providers/aws.js';
 import { GcpService } from './services/providers/gcp.js';
 import { ProxmoxService } from './services/providers/proxmox.js';
@@ -125,6 +127,7 @@ export class ZeusInstanceSDK extends BaseSDK {
     this.help = new HelpService(this);
     this.system = new SystemService(this);
     this.agent = new AgentService(this);
+    this.replication = new ReplicationService(this);
 
     /** Cloud/infra provider namespaces. */
     this.providers = {

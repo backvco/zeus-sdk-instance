@@ -77,6 +77,7 @@ Managed node groups, Karpenter NodePools, and k3s node groups.
 | `drift({ container, name, branch })` | `GET /[name]/nodegroups/drift` | `{ cluster, items }` |
 | `workload({ container, name, ngName })` | `GET /[name]/nodegroups/[ngName]/workload` | `{ cluster, ng, nodes, pods }` |
 | `live({ container, name, ngName, branch })` | `GET /[name]/nodegroups/[ngName]/live` | `{ ng, cluster, live, drift }` |
+| `cancelOperation({ container, name, ngName, force, branch })` | `POST /[name]/nodegroups/[ngName]/cancel-operation` | `{ ng, cluster, cancelled, forced?, deletedMigs? }` (GKE only; `force` deletes MIGs for non-upgrade ops) |
 | `azScope({ container, name, ngName, subnetIds, branch })` | `POST /[name]/nodegroups/[ngName]/az-scope` | **SSE** `done {status}` |
 | `poolPlan({ container, name, poolName, branch })` | `POST /[name]/nodepools/plan` | `{ plan }` |
 | `poolApply({ container, name, poolName, planHash, branch })` | `POST /[name]/nodepools/apply` | **SSE** |

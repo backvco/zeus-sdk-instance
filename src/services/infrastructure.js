@@ -418,6 +418,44 @@ export class InfrastructureService {
   }
 
   /**
+   * One-shot Prometheus snapshot for an addon release — the JSON counterpart
+   * of {@link metricsStream}, sized for tool-calling (bots/MCP): bounded
+   * payload, current values by default, raw series points only when
+   * `includeSeries` is set.
+   *
+   * @param {object} params
+   * @param {string} params.container    - Container name.
+   * @param {string} params.clusterName  - Cluster name (sent as `cluster`).
+   * @param {string} params.addon        - Addon id (sent as `addon`).
+   * @param {string} params.namespace    - Namespace.
+   * @param {string} params.releaseName  - Release name.
+   * @param {string[]|string} [params.keys] - Restrict to these metric keys (array or csv string).
+   * @param {('1h'|'6h'|'24h'|'7d')} [params.range='1h'] - Time range.
+   * @param {boolean} [params.includeSeries] - Include raw `[ts,value]` points per series (default false).
+   * @param {string} [params.branch]     - Config branch (default 'main').
+   * @returns {Promise<{ available: boolean, reason?: string, range?: string, metrics?: Record<string, { current: number|null, series: Array<{ labels: object, current: number|null, points?: Array<[number, number]> }>, error?: string }>, unknownKeys?: string[] }>}
+   * @example
+   * const snap = await sdk.infrastructure.metricsSnapshot({
+   *   container: 'app1', clusterName: 'z-01', addon: 'nats', namespace: 'nats', releaseName: 'nats'
+   * });
+   * // → { available: true, range: '1h', metrics: { qps: { current: 12.3, series: [...] } }, unknownKeys: [] }
+   */
+  metricsSnapshot({ container, clusterName, addon, namespace, releaseName, keys, range, includeSeries, branch }) {
+    return this.sdk._fetch(`${this._base(container)}/metrics/snapshot`, 'GET', {
+      query: {
+        cluster: clusterName,
+        addon,
+        namespace,
+        releaseName,
+        keys: Array.isArray(keys) ? keys.join(',') : keys,
+        range,
+        includeSeries: includeSeries ? '1' : undefined,
+        branch,
+      },
+    });
+  }
+
+  /**
    * Get a cluster's pod and service CIDRs (derived from the live cluster).
    *
    * @param {object} params

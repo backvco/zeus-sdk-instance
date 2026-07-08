@@ -116,6 +116,29 @@ export class ClusterNodegroupsService {
   }
 
   /**
+   * Cancel the cloud provider's in-flight operation for a node group (GKE only).
+   * GKE serializes cluster operations, so a stuck pool create/update blocks all
+   * other mutations until it finishes or is cancelled. GKE's cancel API only
+   * accepts node-upgrade operations; pass `force:true` to force-release any
+   * other stuck operation by deleting the pool's underlying instance groups
+   * (destructive — the pool must be destroyed/replaced afterwards).
+   * @param {object} params
+   * @param {string} params.container
+   * @param {string} params.name
+   * @param {string} params.ngName
+   * @param {boolean} [params.force=false]
+   * @param {string[]} [params.zones] - With force: only release these zones' instance groups
+   *   (zones with running nodes are always kept). Omit to release every failing zone.
+   * @param {string} [params.branch='main']
+   * @returns {Promise<{ ng, cluster, cancelled: Array<{ name, operationType, status }>, forced?: boolean, deletedMigs?: string[], keptMigs?: string[], message?: string }>}
+   * @example
+   * const { cancelled } = await sdk.clusters.nodegroups.cancelOperation({ container:'app1', name:'z-03', ngName:'workers' });
+   */
+  cancelOperation({ container, name, ngName, force, zones, branch }) {
+    return this.sdk._fetch(`${this._base(container, name)}/nodegroups/${encodeURIComponent(ngName)}/cancel-operation`, 'POST', { body: { force, zones, branch } });
+  }
+
+  /**
    * Re-scope a node group's subnets / availability zones (EKS v2). STREAMING.
    * @param {object} params
    * @param {string} params.container
