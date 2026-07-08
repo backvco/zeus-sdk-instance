@@ -278,6 +278,9 @@ export class InfrastructureService {
    * @param {string}  [params.pvcName]  - For `resize-pvc`.
    * @param {string}  [params.newSize]  - For `resize-pvc`.
    * @param {string[]} [params.pvcNames] - For `delete-pvcs`.
+   * @param {boolean} [params.deletePvcs] - For `uninstall`/`force-remove`: also delete the release's PVCs (destroys data). Default false.
+   * @param {boolean} [params.deleteCrds] - For `uninstall`: also delete chart-shipped CRDs once verified unused cluster-wide. Default true. Ignored by `force-remove` (never sweeps CRDs, by construction).
+   * @param {boolean} [params.purgeExtras] - For `uninstall`/`force-remove`: also purge keep-policy credential/TLS secrets + out-of-band resources. Default false.
    * @param {string|null} [params.backupProfile]  - Backup profile name (install/upgrade/save).
    * @param {string|null} [params.restoreProfile] - Restore source profile (restore install).
    * @param {boolean} [params.acknowledgeReachabilityCritical] - Break-glass ack for reachability-critical addons.
@@ -302,14 +305,14 @@ export class InfrastructureService {
   helm({
     container, action, addonName, clusterName, kubeContext, values, version, revision,
     targetNamespace, targetReleaseName, environmentName, deploymentName, liveOnly,
-    pvcName, newSize, pvcNames, backupProfile, restoreProfile,
+    pvcName, newSize, pvcNames, deletePvcs, deleteCrds, backupProfile, restoreProfile,
     acknowledgeReachabilityCritical, branch, purgeExtras,
   }) {
     return this.sdk._fetch(`${this._base(container)}/helm`, 'POST', {
       body: {
         action, addonName, clusterName, kubeContext, values, version, revision,
         targetNamespace, targetReleaseName, environmentName, deploymentName, liveOnly,
-        pvcName, newSize, pvcNames, backupProfile, restoreProfile,
+        pvcName, newSize, pvcNames, deletePvcs, deleteCrds, backupProfile, restoreProfile,
         acknowledgeReachabilityCritical, branch, purgeExtras,
       },
     });
