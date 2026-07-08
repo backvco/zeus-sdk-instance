@@ -280,4 +280,27 @@ export class ClusterOverlayService {
   setRouter({ container, name, ...body }) {
     return this.sdk._fetch(`${this._base(container, name)}/overlay/router`, 'POST', { body });
   }
+
+  /**
+   * Latest mesh health probe sweep + the configured sweep interval.
+   * Container-scoped (probes are pairwise across the whole mesh, not
+   * per-cluster): no `name` param.
+   * @param {object} params - container.
+   * @returns {Promise<{ ok, intervalMs, sweep: { at, results:Array<{from,to,icmp,tcp,dns,pathOk}>, unprobeable:string[], healed:string[] } | null }>}
+   * @example const { sweep } = await sdk.clusters.overlay.meshProbes({ container:'app1' });
+   */
+  meshProbes({ container }) {
+    return this.sdk._fetch(`/v2configs/${encodeURIComponent(container)}/overlay/probes`, 'GET');
+  }
+
+  /**
+   * Tune the mesh probe sweep interval (clamped 15s–10min server-side) and/or
+   * trigger an immediate sweep.
+   * @param {object} params - container + body: intervalMs?, sweepNow?, branch?.
+   * @returns {Promise<{ ok, intervalMs?, sweep? }>}
+   * @example await sdk.clusters.overlay.setMeshProbes({ container:'app1', intervalMs: 30000 });
+   */
+  setMeshProbes({ container, ...body }) {
+    return this.sdk._fetch(`/v2configs/${encodeURIComponent(container)}/overlay/probes`, 'PUT', { body });
+  }
 }
