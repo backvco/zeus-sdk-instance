@@ -12,6 +12,9 @@
  *   - Session:    me() reads the current principal; logout() revokes it.
  *   - Recovery:   forgot() emails a reset link; reset() sets a password from an
  *                 invite/reset token (also used after a forced password change).
+ *   - Email:      sendVerification() asks the CONSOLE to email its
+ *                 verification code/link (verification lives at the console;
+ *                 alert email only flows to console-verified addresses).
  *   - Pickers:    directory() returns a minimal name+email list of users.
  *
  * In the browser the session cookie is sent automatically (`credentials:'include'`);
@@ -103,6 +106,25 @@ export class AuthService {
   }
 
   /**
+   * Trigger the CONSOLE's email-verification message for a user's address
+   * (verification is a console concern — the emailed code/link lands on the
+   * console UI, and the instance mirrors the result at the next SSO login).
+   * Triggers for the caller's own address by default; admins may pass
+   * `userId` for another account. 404 when the email has no console user in
+   * the org; 503 when the instance isn't connected to the console.
+   *
+   * @param {object} [params]
+   * @param {string} [params.userId] - (Admin only) target user id; defaults to self.
+   * @returns {Promise<{ ok: true, sent?: boolean, alreadyVerified?: boolean }>}
+   * @example
+   * await sdk.auth.sendVerification();
+   * await sdk.auth.sendVerification({ userId: 'a1b2c3d4e5f60708' }); // admin re-trigger
+   */
+  sendVerification({ userId } = {}) {
+    return this.sdk._fetch('/auth/send-verification', 'POST', { body: { userId } });
+  }
+
+  /**
    * Firebase social sign-in (Google / Azure). Complete the Firebase popup on the
    * client, then post the resulting ID token here. The email is mapped to a Zeus
    * user: active → session issued; unknown → a pending user is created (HTTP 403,
@@ -122,8 +144,8 @@ export class AuthService {
 
   /**
    * Minimal user directory for recipient pickers (any authenticated user).
-   * Returns only id + name + email for users who have an email — no roles,
-   * status, providers, or password state.
+   * Returns only id + name + email for users with a VERIFIED email — no roles,
+   * status, providers, password state, or unverified addresses (they'd bounce).
    *
    * @returns {Promise<{ directory: Array<{ id: string, fullName: string, email: string }> }>}
    * @example

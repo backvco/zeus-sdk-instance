@@ -70,6 +70,24 @@ flow, and after a forced password change. Password must be ≥ 8 chars.
 await sdk.auth.reset({ token: 'abc123...', password: 'my-new-password' });
 ```
 
+### `sendVerification({ userId? })`
+Trigger the console's email-verification message for a user's address.
+**`POST /api/auth/send-verification`**
+
+Verification is a console concern — the emailed code/link lands on the console
+UI, and the instance mirrors the result at the next SSO login. Alert email only
+flows to console-verified (and opted-in) addresses; the console resolves alert
+recipients. Triggers for the caller's own address by default; admins may pass
+`userId`. 404 when the email has no console user in the org; 503 when the
+instance isn't connected to the console.
+
+- Params: `userId` (optional, admin only)
+- Returns: `{ ok: true, sent?: boolean, alreadyVerified?: boolean }`
+
+```js
+await sdk.auth.sendVerification();
+```
+
 ### `firebase({ idToken })`
 Firebase social sign-in (Google / Azure). **`POST /api/auth/firebase`**
 
@@ -89,7 +107,8 @@ const { user } = await sdk.auth.firebase({ idToken });
 Minimal user directory for recipient pickers (any authenticated user).
 **`GET /api/auth/directory`**
 
-Only id + name + email for users who have an email — no roles/status/providers.
+Only id + name + email for users with a **verified** email — no
+roles/status/providers, and no unverified addresses (they'd bounce).
 
 - Returns: `{ directory: Array<{ id, fullName, email }> }`
 
