@@ -88,6 +88,19 @@ instance isn't connected to the console.
 await sdk.auth.sendVerification();
 ```
 
+### `verificationStatus()`
+Is the caller's email verified at the console? **`GET /api/auth/verification-status`**
+
+Read-only (never sends). Also heals the instance's local mirror when the
+console reports verified, so UI warnings clear without waiting for the next
+SSO login. Returns `unknown: true` when the console is unreachable.
+
+- Returns: `{ verified: boolean, exists?: boolean, unknown?: boolean }`
+
+```js
+const { verified } = await sdk.auth.verificationStatus();
+```
+
 ### `firebase({ idToken })`
 Firebase social sign-in (Google / Azure). **`POST /api/auth/firebase`**
 

@@ -125,6 +125,20 @@ export class AuthService {
   }
 
   /**
+   * Is the caller's email verified at the console? Read-only (never sends);
+   * also heals the instance's local mirror when the console reports verified,
+   * so UI warnings clear without waiting for the next SSO login.
+   *
+   * @returns {Promise<{ verified: boolean, exists?: boolean, unknown?: boolean }>}
+   *   `unknown: true` when the instance can't reach the console.
+   * @example
+   * const { verified } = await sdk.auth.verificationStatus();
+   */
+  verificationStatus() {
+    return this.sdk._fetch('/auth/verification-status', 'GET');
+  }
+
+  /**
    * Firebase social sign-in (Google / Azure). Complete the Firebase popup on the
    * client, then post the resulting ID token here. The email is mapped to a Zeus
    * user: active → session issued; unknown → a pending user is created (HTTP 403,
