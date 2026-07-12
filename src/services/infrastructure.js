@@ -278,6 +278,9 @@ export class InfrastructureService {
    * @param {string}  [params.pvcName]  - For `resize-pvc`.
    * @param {string}  [params.newSize]  - For `resize-pvc`.
    * @param {string[]} [params.pvcNames] - For `delete-pvcs`.
+   * @param {boolean} [params.deletePvcs] - For `uninstall`/`force-remove`: also delete the release's PVCs (destroys data). Default false.
+   * @param {boolean} [params.deleteCrds] - For `uninstall`: also delete chart-shipped CRDs once verified unused cluster-wide. Default true. Ignored by `force-remove` (never sweeps CRDs, by construction).
+   * @param {boolean} [params.purgeExtras] - For `uninstall`/`force-remove`: also purge keep-policy credential/TLS secrets + out-of-band resources. Default false.
    * @param {string|null} [params.backupProfile]  - Backup profile name (install/upgrade/save).
    * @param {string|null} [params.restoreProfile] - Restore source profile (restore install).
    * @param {boolean} [params.acknowledgeReachabilityCritical] - Break-glass ack for reachability-critical addons.
@@ -302,14 +305,14 @@ export class InfrastructureService {
   helm({
     container, action, addonName, clusterName, kubeContext, values, version, revision,
     targetNamespace, targetReleaseName, environmentName, deploymentName, liveOnly,
-    pvcName, newSize, pvcNames, backupProfile, restoreProfile,
+    pvcName, newSize, pvcNames, deletePvcs, deleteCrds, backupProfile, restoreProfile,
     acknowledgeReachabilityCritical, branch, purgeExtras,
   }) {
     return this.sdk._fetch(`${this._base(container)}/helm`, 'POST', {
       body: {
         action, addonName, clusterName, kubeContext, values, version, revision,
         targetNamespace, targetReleaseName, environmentName, deploymentName, liveOnly,
-        pvcName, newSize, pvcNames, backupProfile, restoreProfile,
+        pvcName, newSize, pvcNames, deletePvcs, deleteCrds, backupProfile, restoreProfile,
         acknowledgeReachabilityCritical, branch, purgeExtras,
       },
     });
@@ -411,6 +414,44 @@ export class InfrastructureService {
   metricsStream({ container, clusterName, addonName, namespace, releaseName, range, branch }) {
     return this.sdk._stream(`${this._base(container)}/metrics`, 'GET', {
       query: { cluster: clusterName, addon: addonName, namespace, releaseName, range, branch },
+    });
+  }
+
+  /**
+   * One-shot Prometheus snapshot for an addon release — the JSON counterpart
+   * of {@link metricsStream}, sized for tool-calling (bots/MCP): bounded
+   * payload, current values by default, raw series points only when
+   * `includeSeries` is set.
+   *
+   * @param {object} params
+   * @param {string} params.container    - Container name.
+   * @param {string} params.clusterName  - Cluster name (sent as `cluster`).
+   * @param {string} params.addon        - Addon id (sent as `addon`).
+   * @param {string} params.namespace    - Namespace.
+   * @param {string} params.releaseName  - Release name.
+   * @param {string[]|string} [params.keys] - Restrict to these metric keys (array or csv string).
+   * @param {('1h'|'6h'|'24h'|'7d')} [params.range='1h'] - Time range.
+   * @param {boolean} [params.includeSeries] - Include raw `[ts,value]` points per series (default false).
+   * @param {string} [params.branch]     - Config branch (default 'main').
+   * @returns {Promise<{ available: boolean, reason?: string, range?: string, metrics?: Record<string, { current: number|null, series: Array<{ labels: object, current: number|null, points?: Array<[number, number]> }>, error?: string }>, unknownKeys?: string[] }>}
+   * @example
+   * const snap = await sdk.infrastructure.metricsSnapshot({
+   *   container: 'app1', clusterName: 'z-01', addon: 'nats', namespace: 'nats', releaseName: 'nats'
+   * });
+   * // → { available: true, range: '1h', metrics: { qps: { current: 12.3, series: [...] } }, unknownKeys: [] }
+   */
+  metricsSnapshot({ container, clusterName, addon, namespace, releaseName, keys, range, includeSeries, branch }) {
+    return this.sdk._fetch(`${this._base(container)}/metrics/snapshot`, 'GET', {
+      query: {
+        cluster: clusterName,
+        addon,
+        namespace,
+        releaseName,
+        keys: Array.isArray(keys) ? keys.join(',') : keys,
+        range,
+        includeSeries: includeSeries ? '1' : undefined,
+        branch,
+      },
     });
   }
 

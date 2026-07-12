@@ -116,6 +116,29 @@ export class ClusterNodegroupsService {
   }
 
   /**
+   * Cancel the cloud provider's in-flight operation for a node group (GKE only).
+   * GKE serializes cluster operations, so a stuck pool create/update blocks all
+   * other mutations until it finishes or is cancelled. GKE's cancel API only
+   * accepts node-upgrade operations; pass `force:true` to force-release any
+   * other stuck operation by deleting the pool's underlying instance groups
+   * (destructive — the pool must be destroyed/replaced afterwards).
+   * @param {object} params
+   * @param {string} params.container
+   * @param {string} params.name
+   * @param {string} params.ngName
+   * @param {boolean} [params.force=false]
+   * @param {string[]} [params.zones] - With force: only release these zones' instance groups
+   *   (zones with running nodes are always kept). Omit to release every failing zone.
+   * @param {string} [params.branch='main']
+   * @returns {Promise<{ ng, cluster, cancelled: Array<{ name, operationType, status }>, forced?: boolean, deletedMigs?: string[], keptMigs?: string[], message?: string }>}
+   * @example
+   * const { cancelled } = await sdk.clusters.nodegroups.cancelOperation({ container:'app1', name:'z-03', ngName:'workers' });
+   */
+  cancelOperation({ container, name, ngName, force, zones, branch }) {
+    return this.sdk._fetch(`${this._base(container, name)}/nodegroups/${encodeURIComponent(ngName)}/cancel-operation`, 'POST', { body: { force, zones, branch } });
+  }
+
+  /**
    * Re-scope a node group's subnets / availability zones (EKS v2). STREAMING.
    * @param {object} params
    * @param {string} params.container
@@ -278,31 +301,53 @@ export class ClusterNodegroupsService {
    * @param {string} params.name - Cluster id.
    * @param {string} params.action - One of: 'scale-control-plane', 'reconcile-dns',
    *   'set-autostart', 'forget-group', 'set-control-plane-ha',
-   *   'replace-control-plane-member', 'apply-control-plane'.
+   *   'replace-control-plane-member', 'restart-control-plane-member', 'apply-control-plane'.
    * @param {object} [params] - Action-specific fields, passed through to the body:
-   *   targetCount, preferredIps, groupName, autoStart, haGroup, spread, force, vmName, applyHa.
+   *   targetCount, preferredIps, groupName, autoStart, haGroup, spread, force, vmName, applyHa,
+   *   confirmQuorumRisk (restart-control-plane-member only — required when a 409
+   *   QUORUM_RISK response was returned without it).
    * @returns {ReturnType<import('../../stream.js').openStream>} SSE stream.
    * @example
    * const s = sdk.clusters.nodegroups.k3sAction({ container:'app1', name:'z-02', action:'scale-control-plane', targetCount:3 });
    */
-  k3sAction({ container, name, action, targetCount, preferredIps, groupName, autoStart, haGroup, spread, force, vmName, applyHa }) {
+  k3sAction({ container, name, action, targetCount, preferredIps, groupName, autoStart, haGroup, spread, force, vmName, applyHa, confirmQuorumRisk }) {
     return this.sdk._stream(`${this._base(container, name)}/k3s-nodegroups`, 'POST', {
-      body: { action, targetCount, preferredIps, groupName, autoStart, haGroup, spread, force, vmName, applyHa },
+      body: { action, targetCount, preferredIps, groupName, autoStart, haGroup, spread, force, vmName, applyHa, confirmQuorumRisk },
     });
   }
 
   /**
-   * Status of k3s node groups (or control-plane members with `detail`).
+   * Status of k3s node groups (or control-plane members with `detail`). Member
+   * rows (`detail:'control-plane'`) carry `supportsLogs`/`supportsRestart` — the
+   * per-member agent capability flags the Servers table gates the Logs/Restart
+   * buttons on.
    * @param {object} params
    * @param {string} params.container
    * @param {string} params.name - Cluster id.
    * @param {string} [params.detail] - Pass 'control-plane' for member-level detail.
-   * @returns {Promise<{ items, reachable } | { members, reachable, desired }>}
+   * @returns {Promise<{ items, reachable } | { members, reachable, desired, quorum }>}
    * @example
    * const { items } = await sdk.clusters.nodegroups.k3sStatus({ container:'app1', name:'z-02' });
    */
   k3sStatus({ container, name, detail }) {
     return this.sdk._fetch(`${this._base(container, name)}/k3s-nodegroups/status`, 'GET', { query: { detail } });
+  }
+
+  /**
+   * Journalctl tail for the k3s unit on ONE control-plane member, via the
+   * agent's bounded k3s-logs op (v0.14.0+). 409s with `{ error:'agent-update-required' }`
+   * when the member's agent predates the command.
+   * @param {object} params
+   * @param {string} params.container
+   * @param {string} params.name - Cluster id.
+   * @param {string} params.server - Control-plane VM name (member.name from k3sStatus).
+   * @param {number} [params.lines=200] - 1..1000.
+   * @returns {Promise<{ ok:boolean, unit:'k3s', lines:string[] }>}
+   * @example
+   * const { lines } = await sdk.clusters.nodegroups.k3sLogs({ container:'app1', name:'z-02', server:'z-02-cp-1' });
+   */
+  k3sLogs({ container, name, server, lines }) {
+    return this.sdk._fetch(`${this._base(container, name)}/k3s-nodegroups/logs`, 'GET', { query: { server, lines } });
   }
 
   /**

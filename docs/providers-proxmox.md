@@ -135,8 +135,13 @@ await sdk.providers.proxmox.accounts.unifi({ id: 'acc1', action: 'realize', netw
 | `refreshHost({ siteId, agentId })` | `POST .../hosts/:agentId/refresh` | `{ host }` |
 | `uninstallHost({ siteId, agentId })` | `POST .../hosts/:agentId/uninstall` | `{ ok, uninstalled, note }` |
 | `updateHostAgent({ siteId, agentId })` | `POST .../hosts/:agentId/update` | `{ ok, note }` |
+| `hostIncident({ siteId, agentId })` | `GET .../hosts/:agentId/incident` | host-down incident detail |
+| `doctorReports({ siteId })` | `GET .../doctor-reports` | `{ summaries }` — per-host latest verdict summary |
+| `doctorReport({ siteId, agentId })` | `GET .../doctor-reports/:agentId` | `{ report, summaryHistory }` |
+| `runDoctorCheck({ siteId, agentId })` | `POST .../doctor-reports/:agentId/check` | `{ report, summaryHistory }` — on-demand check |
 | `linkInit({ siteId?, alias?, displayName? })` | `POST .../sites/link/init` | `{ token, expiresAt, command, zeusUrl, siteId }` |
 | `linkStatus({ token })` | `GET .../sites/link/status?token=` | enroll status |
+| `importDoctorReport({ fileBase64, filename? })` | `POST .../doctor-report-import` | `{ report, configHistory, entryNames }` — offline USB-zip import, parsed in memory only |
 
 ---
 

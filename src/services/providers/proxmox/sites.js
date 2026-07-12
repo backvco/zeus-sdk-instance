@@ -55,21 +55,27 @@ export class ProxmoxSitesService {
   }
 
   /**
-   * Update a site, or mark it default (pass `action:'set-default'`).
+   * Update a site, mark it default (pass `action:'set-default'`), or set its
+   * opt-in host-auto-recovery policy (pass `autoRecover`).
    *
    * @param {object} params
    * @param {string} params.siteId
    * @param {string} [params.action] - `'set-default'` to make this the default site.
    * @param {string} [params.alias]
    * @param {string} [params.displayName]
-   * @returns {Promise<{ site: object, defaulted?: boolean }>}
+   * @param {{ enabled: boolean, afterMinutes?: number }} [params.autoRecover] - When set,
+   *   patches ONLY the auto-recover policy (ignores alias/displayName/action). Off by
+   *   default; when enabled, the health daemon auto-marks a DOWN host failed once it's
+   *   been down longer than `afterMinutes` (default 15).
+   * @returns {Promise<{ site: object, defaulted?: boolean, autoRecover?: object }>}
    * @example
    * await sdk.providers.proxmox.sites.update({ siteId: 'site1', displayName: 'Indy DC 2' });
    * await sdk.providers.proxmox.sites.update({ siteId: 'site1', action: 'set-default' });
+   * await sdk.providers.proxmox.sites.update({ siteId: 'site1', autoRecover: { enabled: true, afterMinutes: 20 } });
    */
-  update({ siteId, action, alias, displayName }) {
+  update({ siteId, action, alias, displayName, autoRecover }) {
     return this.sdk._fetch(`/providers/proxmox/sites/${this._s(siteId)}`, 'PUT', {
-      body: { action, alias, displayName },
+      body: { action, alias, displayName, autoRecover },
     });
   }
 
@@ -332,6 +338,84 @@ export class ProxmoxSitesService {
   }
 
   /**
+   * Full host-down incident picture: host-health state + per-impacted-cluster
+   * live detail (NotReady nodes, pods pending on spread/affinity vs. other
+   * reasons, pods stuck Terminating on the host's nodes, stranded local-path
+   * PVCs, control-plane/etcd quorum exposure). Degraded clusters return
+   * partial data with per-section `errors` rather than failing the request.
+   *
+   * @param {object} params
+   * @param {string} params.siteId
+   * @param {string} params.agentId
+   * @returns {Promise<{ agentId: string, siteId: string, hostname: string, state: string, since: string, quorumExposed: boolean, clusters: Array<object> }>}
+   * @example
+   * const incident = await sdk.providers.proxmox.sites.hostIncident({ siteId: 'site1', agentId: 'ag1' });
+   */
+  hostIncident({ siteId, agentId }) {
+    return this.sdk._fetch(`/providers/proxmox/sites/${this._s(siteId)}/hosts/${this._a(agentId)}/incident`, 'GET');
+  }
+
+  /**
+   * Latest doctor-report summary for every host on a site that has one
+   * (`.plans/proxmox-host-doctor.md` §6 "Host health" card).
+   *
+   * @param {object} params
+   * @param {string} params.siteId
+   * @returns {Promise<{ summaries: Array<{agentId:string, at:string|null, worstSeverity:string, incidentDomains:string[], history:Array}> }>}
+   * @example
+   * const { summaries } = await sdk.providers.proxmox.sites.doctorReports({ siteId: 'site1' });
+   */
+  doctorReports({ siteId }) {
+    return this.sdk._fetch(`/providers/proxmox/sites/${this._s(siteId)}/doctor-reports`, 'GET');
+  }
+
+  /**
+   * Full stored doctor report + summary history for one host.
+   *
+   * @param {object} params
+   * @param {string} params.siteId
+   * @param {string} params.agentId
+   * @returns {Promise<{ report: object, summaryHistory: Array }>}
+   * @example
+   * const { report } = await sdk.providers.proxmox.sites.doctorReport({ siteId: 'site1', agentId: 'ag1' });
+   */
+  doctorReport({ siteId, agentId }) {
+    return this.sdk._fetch(`/providers/proxmox/sites/${this._s(siteId)}/doctor-reports/${this._a(agentId)}`, 'GET');
+  }
+
+  /**
+   * Run a doctor check right now (host must be online) — bypasses the daily
+   * sweep cadence. Stores + evaluates the result exactly like a routine sweep.
+   *
+   * @param {object} params
+   * @param {string} params.siteId
+   * @param {string} params.agentId
+   * @returns {Promise<{ report: object, summaryHistory: Array }>}
+   * @example
+   * await sdk.providers.proxmox.sites.runDoctorCheck({ siteId: 'site1', agentId: 'ag1' });
+   */
+  runDoctorCheck({ siteId, agentId }) {
+    return this.sdk._fetch(`/providers/proxmox/sites/${this._s(siteId)}/doctor-reports/${this._a(agentId)}/check`, 'POST');
+  }
+
+  /**
+   * Preview the exact "Mark host failed" action list for a down host: per
+   * impacted cluster, Node objects to delete, etcd members to remove,
+   * orphaned local-path PVCs (and whether they'll be deleted), VM records
+   * to mark failed. Render this verbatim before the destructive apply.
+   *
+   * @param {object} params
+   * @param {string} params.siteId
+   * @param {string} params.agentId
+   * @returns {Promise<object>} preview payload — see host-failed.js `previewMarkHostFailed`.
+   * @example
+   * const preview = await sdk.providers.proxmox.sites.markHostFailedPreview({ siteId: 'site1', agentId: 'ag1' });
+   */
+  markHostFailedPreview({ siteId, agentId }) {
+    return this.sdk._fetch(`/providers/proxmox/sites/${this._s(siteId)}/hosts/${this._a(agentId)}/mark-failed`, 'GET');
+  }
+
+  /**
    * Begin a site-link enrollment — mint the one-line agent-install command.
    *
    * @param {object} [params]
@@ -359,5 +443,23 @@ export class ProxmoxSitesService {
    */
   linkStatus({ token }) {
     return this.sdk._fetch('/providers/proxmox/sites/link/status', 'GET', { query: { token } });
+  }
+
+  /**
+   * Import an offline `zeus doctor` USB-export bundle (a `zeus-report-*.zip`,
+   * plan §3/§6 item 5) for one-off viewing. Parsed in memory server-side only —
+   * never persisted. Send the raw zip bytes as a base64 string.
+   *
+   * @param {object} params
+   * @param {string} params.fileBase64 - The `.zip` file contents, base64-encoded.
+   * @param {string} [params.filename]
+   * @returns {Promise<{ report: object, configHistory: Array|null }>}
+   * @example
+   * const { report } = await sdk.providers.proxmox.sites.importDoctorReport({ fileBase64 });
+   */
+  importDoctorReport({ fileBase64, filename }) {
+    return this.sdk._fetch('/providers/proxmox/doctor-report-import', 'POST', {
+      body: { fileBase64, filename },
+    });
   }
 }

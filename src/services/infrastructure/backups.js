@@ -27,8 +27,10 @@ export class InfrastructureBackupsService {
    * @param {string} params.environmentName  - Environment name.
    * @param {string} params.profileName      - Backup profile name (provides bucket + creds).
    * @param {string} [params.addonName]      - Addon id (with `clusterName` → mode 2).
-   * @param {string} [params.clusterName]    - Cluster name (with `addonName` → mode 2).
+   * @param {string} [params.clusterName]    - Cluster name (with `addonName` → mode 2). Not required when `setName` is given.
    * @param {string} [params.releaseName]    - Release name for orphaned/uninstalled deployments.
+   * @param {string} [params.setName]        - Replication-set name — routes mode 2 to the shared `sets/<setName>` subtree instead of a standalone `<cluster>/<release>` path (backup-identity-per-set.md v2). Required for set sources with no resolvable `clusterName`.
+   * @param {string} [params.serverName]     - CNPG member folder name within a set (postgresql-cluster set sources only) — which member's barman folder to list.
    * @param {string} [params.branch]         - Config branch (default 'main').
    * @returns {Promise<object>} Scan summary (mode 1) or backup list (mode 2).
    * @example
@@ -38,9 +40,9 @@ export class InfrastructureBackupsService {
    *   addonName: 'mysql-innodbcluster', clusterName: 'z-01'
    * });
    */
-  list({ container, environmentName, profileName, addonName, clusterName, releaseName, branch }) {
+  list({ container, environmentName, profileName, addonName, clusterName, releaseName, setName, serverName, branch }) {
     return this.sdk._fetch(this._base(container), 'GET', {
-      query: { environmentName, profileName, addonName, clusterName, releaseName, branch },
+      query: { environmentName, profileName, addonName, clusterName, releaseName, setName, serverName, branch },
     });
   }
 

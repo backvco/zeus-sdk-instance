@@ -77,6 +77,7 @@ Managed node groups, Karpenter NodePools, and k3s node groups.
 | `drift({ container, name, branch })` | `GET /[name]/nodegroups/drift` | `{ cluster, items }` |
 | `workload({ container, name, ngName })` | `GET /[name]/nodegroups/[ngName]/workload` | `{ cluster, ng, nodes, pods }` |
 | `live({ container, name, ngName, branch })` | `GET /[name]/nodegroups/[ngName]/live` | `{ ng, cluster, live, drift }` |
+| `cancelOperation({ container, name, ngName, force, branch })` | `POST /[name]/nodegroups/[ngName]/cancel-operation` | `{ ng, cluster, cancelled, forced?, deletedMigs? }` (GKE only; `force` deletes MIGs for non-upgrade ops) |
 | `azScope({ container, name, ngName, subnetIds, branch })` | `POST /[name]/nodegroups/[ngName]/az-scope` | **SSE** `done {status}` |
 | `poolPlan({ container, name, poolName, branch })` | `POST /[name]/nodepools/plan` | `{ plan }` |
 | `poolApply({ container, name, poolName, planHash, branch })` | `POST /[name]/nodepools/apply` | **SSE** |
@@ -88,12 +89,13 @@ Managed node groups, Karpenter NodePools, and k3s node groups.
 | `poolLive({ container, name, poolName, branch })` | `GET /[name]/nodepools/[poolName]/live` | `{ pool, cluster, live }` |
 | `poolImpact({ container, name, poolName, branch })` | `GET /[name]/nodepools/[poolName]/impact` | `{ cluster, pool, ...impact }` |
 | `k3sAction({ container, name, action, ...fields })` | `POST /[name]/k3s-nodegroups` | **SSE** |
-| `k3sStatus({ container, name, detail })` | `GET /[name]/k3s-nodegroups/status` | `{ items, reachable }` or `{ members, ... }` |
+| `k3sStatus({ container, name, detail })` | `GET /[name]/k3s-nodegroups/status` | `{ items, reachable }` or `{ members, ..., quorum }` |
+| `k3sLogs({ container, name, server, lines })` | `GET /[name]/k3s-nodegroups/logs` | `{ ok, unit:'k3s', lines }` (409 `agent-update-required`) |
 | `k3sSyncStatus({ container, name })` | `GET /[name]/k3s-nodegroups/sync` | `{ reachable, inSync, orphans, ghosts, healthy }` |
 | `k3sSync({ container, name, decisions })` | `POST /[name]/k3s-nodegroups/sync` | **SSE** |
 | `k3sWorkload({ container, name, ngName })` | `GET /[name]/k3s-nodegroups/[ngName]/workload` | `{ cluster, ng, nodes, pods }` |
 
-`k3sAction` actions: `scale-control-plane, reconcile-dns, set-autostart, forget-group, set-control-plane-ha, replace-control-plane-member, apply-control-plane` (+ per-action fields `targetCount, preferredIps, groupName, autoStart, haGroup, spread, force, vmName, applyHa`). `k3sStatus` `detail:'control-plane'` switches to member-level. `workload`/`poolWorkload` do NOT read `branch`.
+`k3sAction` actions: `scale-control-plane, reconcile-dns, set-autostart, forget-group, set-control-plane-ha, replace-control-plane-member, restart-control-plane-member, apply-control-plane` (+ per-action fields `targetCount, preferredIps, groupName, autoStart, haGroup, spread, force, vmName, applyHa, confirmQuorumRisk`). `restart-control-plane-member` 409s `{ code:'QUORUM_RISK', quorum }` unless `confirmQuorumRisk:true` when the control plane has zero etcd fault margin. `k3sStatus` `detail:'control-plane'` switches to member-level (each member carries `supportsLogs`/`supportsRestart`). `workload`/`poolWorkload` do NOT read `branch`.
 
 ## `sdk.clusters.security` — ClusterSecurityService
 

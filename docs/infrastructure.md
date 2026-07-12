@@ -76,16 +76,20 @@ stream.onDone((r) => console.log(r));
 
 ### `helm({ container, action, addonName, ... })`
 `POST /infrastructure/helm` — synchronous JSON (NOT a stream). Dispatches on
-`action`: `install`, `upgrade`, `rollback`, `uninstall`, `unstick`, `status`,
-`values`, `history`, `manifest`, `render`, `save`, `revert`, `restart`,
-`resize-pvc`, `delete-pvcs`, `ingress-transport-check`. Tunnel-aware (k3s).
-Response shape is action-dependent; install/upgrade ≈
+`action`: `install`, `upgrade`, `rollback`, `uninstall`, `unstick`,
+`force-remove`, `status`, `values`, `history`, `manifest`, `render`, `save`,
+`revert`, `restart`, `resize-pvc`, `delete-pvcs`, `ingress-transport-check`.
+Tunnel-aware (k3s). Response shape is action-dependent; install/upgrade ≈
 `{ result, action, rollout?, reachability?, warnings? }`.
 
 Optional body fields: `clusterName`, `kubeContext`, `values`, `version`,
 `revision`, `targetNamespace`, `targetReleaseName`, `environmentName`,
-`deploymentName`, `liveOnly`, `pvcName`, `newSize`, `pvcNames`, `backupProfile`,
-`restoreProfile`, `acknowledgeReachabilityCritical`, `branch`.
+`deploymentName`, `liveOnly`, `pvcName`, `newSize`, `pvcNames`, `deletePvcs`
+(uninstall/force-remove — also delete the release's PVCs, default false),
+`deleteCrds` (uninstall only — default true; force-remove never touches CRDs),
+`purgeExtras` (uninstall/force-remove — also purge keep-policy secrets/
+out-of-band resources, default false), `backupProfile`, `restoreProfile`,
+`acknowledgeReachabilityCritical`, `branch`.
 
 **412 acknowledgement:** for a `reachabilityCritical` addon (e.g.
 `netbird-management`), a mutating action without
