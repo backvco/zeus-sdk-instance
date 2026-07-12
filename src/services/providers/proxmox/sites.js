@@ -356,6 +356,49 @@ export class ProxmoxSitesService {
   }
 
   /**
+   * Latest doctor-report summary for every host on a site that has one
+   * (`.plans/proxmox-host-doctor.md` §6 "Host health" card).
+   *
+   * @param {object} params
+   * @param {string} params.siteId
+   * @returns {Promise<{ summaries: Array<{agentId:string, at:string|null, worstSeverity:string, incidentDomains:string[], history:Array}> }>}
+   * @example
+   * const { summaries } = await sdk.providers.proxmox.sites.doctorReports({ siteId: 'site1' });
+   */
+  doctorReports({ siteId }) {
+    return this.sdk._fetch(`/providers/proxmox/sites/${this._s(siteId)}/doctor-reports`, 'GET');
+  }
+
+  /**
+   * Full stored doctor report + summary history for one host.
+   *
+   * @param {object} params
+   * @param {string} params.siteId
+   * @param {string} params.agentId
+   * @returns {Promise<{ report: object, summaryHistory: Array }>}
+   * @example
+   * const { report } = await sdk.providers.proxmox.sites.doctorReport({ siteId: 'site1', agentId: 'ag1' });
+   */
+  doctorReport({ siteId, agentId }) {
+    return this.sdk._fetch(`/providers/proxmox/sites/${this._s(siteId)}/doctor-reports/${this._a(agentId)}`, 'GET');
+  }
+
+  /**
+   * Run a doctor check right now (host must be online) — bypasses the daily
+   * sweep cadence. Stores + evaluates the result exactly like a routine sweep.
+   *
+   * @param {object} params
+   * @param {string} params.siteId
+   * @param {string} params.agentId
+   * @returns {Promise<{ report: object, summaryHistory: Array }>}
+   * @example
+   * await sdk.providers.proxmox.sites.runDoctorCheck({ siteId: 'site1', agentId: 'ag1' });
+   */
+  runDoctorCheck({ siteId, agentId }) {
+    return this.sdk._fetch(`/providers/proxmox/sites/${this._s(siteId)}/doctor-reports/${this._a(agentId)}/check`, 'POST');
+  }
+
+  /**
    * Preview the exact "Mark host failed" action list for a down host: per
    * impacted cluster, Node objects to delete, etcd members to remove,
    * orphaned local-path PVCs (and whether they'll be deleted), VM records
@@ -400,5 +443,23 @@ export class ProxmoxSitesService {
    */
   linkStatus({ token }) {
     return this.sdk._fetch('/providers/proxmox/sites/link/status', 'GET', { query: { token } });
+  }
+
+  /**
+   * Import an offline `zeus doctor` USB-export bundle (a `zeus-report-*.zip`,
+   * plan §3/§6 item 5) for one-off viewing. Parsed in memory server-side only —
+   * never persisted. Send the raw zip bytes as a base64 string.
+   *
+   * @param {object} params
+   * @param {string} params.fileBase64 - The `.zip` file contents, base64-encoded.
+   * @param {string} [params.filename]
+   * @returns {Promise<{ report: object, configHistory: Array|null }>}
+   * @example
+   * const { report } = await sdk.providers.proxmox.sites.importDoctorReport({ fileBase64 });
+   */
+  importDoctorReport({ fileBase64, filename }) {
+    return this.sdk._fetch('/providers/proxmox/doctor-report-import', 'POST', {
+      body: { fileBase64, filename },
+    });
   }
 }
