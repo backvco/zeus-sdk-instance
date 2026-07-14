@@ -514,7 +514,9 @@ export class InfrastructureService {
   /**
    * Run an addon operation against the live cluster. Dispatches on `action`:
    * `list-pods`, `exec`, `verify` (port-forward GET), `delete-pod`,
-   * `run-operation` (a catalog operation: rolling-restart or per-pod exec).
+   * `run-operation` (a catalog operation: rolling-restart or per-pod exec),
+   * `valkey-topology` (per-pod replication roles for a valkey release),
+   * `valkey-make-master` (sentinel-driven in-cluster promote of `podName`).
    *
    * @param {object} params
    * @param {string} params.container    - Container name.
@@ -529,6 +531,7 @@ export class InfrastructureService {
    * @param {string} [params.command]    - Command (exec).
    * @param {number} [params.port]        - Port (verify).
    * @param {string} [params.path]        - Path (verify).
+   * @param {string} [params.masterSet]   - Sentinel master-set name (valkey-make-master; default 'mymaster').
    * @param {string} [params.branch]      - Config branch (default 'main').
    * @returns {Promise<object>} Action-dependent JSON (e.g. `{ pods }`, `{ success, output }`, `{ success, results, operation }`).
    * @example
@@ -536,9 +539,9 @@ export class InfrastructureService {
    *   container: 'app1', action: 'list-pods', clusterName: 'z-01', namespace: 'nats', releaseName: 'nats'
    * });
    */
-  operation({ container, action, clusterName, namespace, releaseName, addonName, operationId, podName, container_, command, port, path, branch }) {
+  operation({ container, action, clusterName, namespace, releaseName, addonName, operationId, podName, container_, command, port, path, masterSet, branch }) {
     return this.sdk._fetch(`${this._base(container)}/operations`, 'POST', {
-      body: { action, clusterName, namespace, releaseName, addonName, operationId, podName, container: container_, command, port, path, branch },
+      body: { action, clusterName, namespace, releaseName, addonName, operationId, podName, container: container_, command, port, path, masterSet, branch },
     });
   }
 

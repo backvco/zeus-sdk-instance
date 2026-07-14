@@ -109,4 +109,56 @@ export class InfrastructureBackupsService {
       body: { addonName, environmentName, clusterName, deploymentName },
     });
   }
+
+  /**
+   * YugabyteDB point-in-time recovery bounds — `[now - retentionMinutes, now]`
+   * from the deployment's own `pitr.retentionMinutes` config, plus a
+   * best-effort live snapshot-schedule id (see the API route's own caveat
+   * about yb-admin's text-output parsing).
+   *
+   * @param {object} params
+   * @param {string} params.container        - Container name.
+   * @param {string} params.environmentName  - Environment name.
+   * @param {string} params.clusterName      - Cluster name.
+   * @param {string} [params.branch]         - Config branch (default 'main').
+   * @returns {Promise<{ pitrEnabled: boolean, pitrRange: {earliest:string,latest:string}|null, scheduleId?: string|null, scheduleError?: string|null }>}
+   * @example
+   * const { pitrRange } = await sdk.infrastructure.backups.pitrRange({
+   *   container: 'app1', environmentName: 'prod', clusterName: 'z-01'
+   * });
+   */
+  pitrRange({ container, environmentName, clusterName, branch }) {
+    return this.sdk._fetch(`${this._base(container)}/yugabyte-pitr`, 'GET', {
+      query: { environmentName, clusterName, branch },
+    });
+  }
+
+  /**
+   * Restore a YugabyteDB universe to a point in time via its snapshot
+   * schedule (`yb-admin restore_snapshot_schedule`) — an IN-PLACE action on
+   * the already-installed universe, not a new install (unlike CNPG/NDB
+   * restore, which reinstall from an S3 dump). **Streaming** — returns an
+   * SSE stream handle. Emits `step`/`error` events and a final `done`
+   * payload `{ ok, message?, error?, raw? }`. Throws HTTP 409 if a PITR
+   * restore is already in flight for this deployment.
+   *
+   * @param {object} params
+   * @param {string} params.container        - Container name.
+   * @param {string} params.environmentName  - Environment name.
+   * @param {string} params.clusterName      - Cluster name.
+   * @param {string} params.targetTime       - ISO-8601 timestamp to restore to (within the retention window).
+   * @param {string} [params.branch]         - Config branch (default 'main').
+   * @returns {ReturnType<import('../base.js').BaseSDK['_stream']>} SSE stream handle.
+   * @example
+   * const stream = sdk.infrastructure.backups.pitrRestore({
+   *   container: 'app1', environmentName: 'prod', clusterName: 'z-01',
+   *   targetTime: '2026-07-12T14:00:00.000Z'
+   * });
+   * stream.onDone((res) => console.log('done', res));
+   */
+  pitrRestore({ container, environmentName, clusterName, branch, targetTime }) {
+    return this.sdk._stream(`${this._base(container)}/yugabyte-pitr`, 'POST', {
+      body: { environmentName, clusterName, branch, targetTime },
+    });
+  }
 }
