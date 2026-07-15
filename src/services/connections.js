@@ -1,8 +1,10 @@
 // @ts-nocheck
+import { ConnectionsNatsSuperclusterService } from './connections/nats-supercluster.js';
+
 /**
  * ConnectionsService — third-party connection providers + connection categories,
- * plus the three top-level operator connection types (edge-tenant, NATS gateway,
- * NetBird overlay).
+ * plus the top-level operator connection types (edge-tenant, NetBird overlay,
+ * and NATS supercluster under `sdk.connections.natsSupercluster`).
  *
  * Accessed as `sdk.connections`.
  *
@@ -24,7 +26,10 @@
  * defaulting to 'main'); top-level methods take `{ container?, branch?, ... }`.
  */
 export class ConnectionsService {
-  constructor(sdk) { this.sdk = sdk; }
+  constructor(sdk) {
+    this.sdk = sdk;
+    this.natsSupercluster = new ConnectionsNatsSuperclusterService(sdk);
+  }
 
   // ─── Container-scoped providers ────────────────────────────────────────────
 
@@ -417,75 +422,11 @@ export class ConnectionsService {
   }
 
   // ─── Top-level: nats-gateway ──────────────────────────────────────────────
-
-  /**
-   * List NATS gateway connection records (masked).
-   *
-   * @param {object} [params]
-   * @param {string} [params.container='app1'] - Container name (query).
-   * @param {string} [params.branch='main'] - Config branch (query).
-   * @returns {Promise<{ records: Array<object> }>}
-   * @example
-   * const { records } = await sdk.connections.listNatsGateways();
-   */
-  listNatsGateways({ container, branch } = {}) {
-    return this.sdk._fetch('/connections/nats-gateway', 'GET', { query: { container, branch } });
-  }
-
-  /**
-   * Create or update a NATS gateway connection.
-   *
-   * @param {object} params
-   * @param {string} params.name - Gateway name (required).
-   * @param {string} [params.advertise] - Advertised address.
-   * @param {Array<object>} [params.peers] - Peer gateway definitions.
-   * @param {string} [params.operatorJwt] - Operator JWT.
-   * @param {string} [params.accountJwt] - Account JWT.
-   * @param {string} [params.container='app1'] - Container name (body).
-   * @param {string} [params.branch='main'] - Config branch (body).
-   * @returns {Promise<{ record: object }>} The saved (masked) record (HTTP 201).
-   * @example
-   * await sdk.connections.saveNatsGateway({ name: 'mesh-gw', advertise: 'nats.example.com:7222' });
-   */
-  saveNatsGateway({ name, advertise, peers, operatorJwt, accountJwt, container, branch }) {
-    return this.sdk._fetch('/connections/nats-gateway', 'POST', {
-      body: { name, advertise, peers, operatorJwt, accountJwt, container, branch },
-    });
-  }
-
-  /**
-   * Rotate a NATS gateway's user seed.
-   *
-   * @param {object} params
-   * @param {string} params.name - Gateway name (required).
-   * @param {string} [params.container='app1'] - Container name (body).
-   * @param {string} [params.branch='main'] - Config branch (body).
-   * @returns {Promise<{ record: object }>} The rotated (masked) record.
-   * @example
-   * await sdk.connections.rotateNatsGateway({ name: 'mesh-gw' });
-   */
-  rotateNatsGateway({ name, container, branch }) {
-    return this.sdk._fetch('/connections/nats-gateway', 'POST', {
-      body: { name, action: 'rotate', container, branch },
-    });
-  }
-
-  /**
-   * Delete a NATS gateway connection.
-   *
-   * @param {object} params
-   * @param {string} params.name - Gateway name (required).
-   * @param {string} [params.container='app1'] - Container name (query).
-   * @param {string} [params.branch='main'] - Config branch (query).
-   * @returns {Promise<{ deleted: * }>}
-   * @example
-   * await sdk.connections.deleteNatsGateway({ name: 'mesh-gw' });
-   */
-  deleteNatsGateway({ name, container, branch }) {
-    return this.sdk._fetch('/connections/nats-gateway', 'DELETE', {
-      query: { container, branch, name },
-    });
-  }
+  // Replaced by the nats-supercluster connection type (one object per
+  // supercluster instead of one per member cluster) — see
+  // `sdk.connections.natsSupercluster` (services/connections/nats-supercluster.js),
+  // split into its own sub-namespace file rather than added here (this file
+  // is already over the 400-line guideline — see this package's CLAUDE.md).
 
   // ─── Top-level: netbird-overlay ───────────────────────────────────────────
 
