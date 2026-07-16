@@ -30,13 +30,16 @@ export class ClusterNodegroupsService {
    * @param {string} params.container
    * @param {string} params.name   - Cluster name.
    * @param {string} params.ngName - Node-group name.
+   * @param {string} [params.mode] - 'rebalance' for a k3s/Proxmox redistribution plan
+   *   ({ counts, moves, warnings, className, eligibleHosts }); omit for the default
+   *   change plan. 501 if the provider doesn't implement rebalance planning.
    * @param {string} [params.branch='main']
    * @returns {Promise<{ plan: { provider, cluster, nodeGroup, steps, warnings, errors, summary, planHash } }>}
    * @example
    * const { plan } = await sdk.clusters.nodegroups.plan({ container:'app1', name:'z-01', ngName:'workers' });
    */
-  plan({ container, name, ngName, branch }) {
-    return this.sdk._fetch(`${this._base(container, name)}/nodegroups/plan`, 'POST', { body: { ngName, branch } });
+  plan({ container, name, ngName, mode, branch }) {
+    return this.sdk._fetch(`${this._base(container, name)}/nodegroups/plan`, 'POST', { body: { ngName, mode, branch } });
   }
 
   /**
@@ -46,15 +49,20 @@ export class ClusterNodegroupsService {
    * @param {string} params.name
    * @param {string} params.ngName
    * @param {string} [params.planHash] - Plan hash from {@link plan} (optional).
-   * @param {string} [params.mode] - 'replace' for a full replace; anything else applies in place.
+   * @param {string} [params.mode] - 'replace' for a full replace, 'rebalance' to
+   *   redistribute a k3s/Proxmox group's VMs across its eligible hosts; anything
+   *   else applies in place.
+   * @param {Array<{vmName:string,from:string,to:string}>} [params.expectedMoves] -
+   *   Rebalance only: the move list from {@link plan} mode 'rebalance'. The server
+   *   recomputes the plan and refuses to run if it no longer matches (present == apply).
    * @param {string} [params.branch='main']
    * @returns {ReturnType<import('../../stream.js').openStream>} SSE stream; `done` payload `{ status }`.
    * @example
    * const s = sdk.clusters.nodegroups.apply({ container:'app1', name:'z-01', ngName:'workers' });
    * for await (const ev of s) console.log(ev);
    */
-  apply({ container, name, ngName, planHash, mode, branch }) {
-    return this.sdk._stream(`${this._base(container, name)}/nodegroups/apply`, 'POST', { body: { ngName, planHash, mode, branch } });
+  apply({ container, name, ngName, planHash, mode, expectedMoves, branch }) {
+    return this.sdk._stream(`${this._base(container, name)}/nodegroups/apply`, 'POST', { body: { ngName, planHash, mode, expectedMoves, branch } });
   }
 
   /**

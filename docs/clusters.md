@@ -71,8 +71,8 @@ Managed node groups, Karpenter NodePools, and k3s node groups.
 
 | Method | Route | Returns |
 |---|---|---|
-| `plan({ container, name, ngName, branch })` | `POST /[name]/nodegroups/plan` | `{ plan }` |
-| `apply({ container, name, ngName, planHash, mode, branch })` | `POST /[name]/nodegroups/apply` | **SSE** `done {status}` |
+| `plan({ container, name, ngName, mode, branch })` | `POST /[name]/nodegroups/plan` | `{ plan }` — `mode:'rebalance'` (k3s/Proxmox) returns `{ counts, moves, warnings, className, eligibleHosts }` |
+| `apply({ container, name, ngName, planHash, mode, expectedMoves, branch })` | `POST /[name]/nodegroups/apply` | **SSE** `done {status}` — `mode:'rebalance'` requires `expectedMoves` from the rebalance plan |
 | `destroy({ container, name, ngName, branch })` | `POST /[name]/nodegroups/destroy` | **SSE** `done {status,summary}` |
 | `drift({ container, name, branch })` | `GET /[name]/nodegroups/drift` | `{ cluster, items }` |
 | `workload({ container, name, ngName })` | `GET /[name]/nodegroups/[ngName]/workload` | `{ cluster, ng, nodes, pods }` |
