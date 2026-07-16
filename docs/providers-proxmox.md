@@ -132,6 +132,8 @@ await sdk.providers.proxmox.accounts.unifi({ id: 'acc1', action: 'realize', netw
 | `clusterStorageInstall({ siteId, clusterId, action?, provisioner?, nfsServer?, nfsPath?, proxmoxStorage?, makeDefault?, overrideUrls?, overrideUrl? })` **(SSE)** | `POST .../clusters/:clusterId/storage/install` | install / `reconfigure-csi` / `reconcile-csi-nodes` |
 | `updateHost({ siteId, agentId, role, pool? })` | `PUT .../hosts/:agentId` | `{ host }` |
 | `deleteHost({ siteId, agentId })` | `DELETE .../hosts/:agentId` | `{ ok }` |
+| `setHostMaintenance({ siteId, agentId, enabled, reason? })` | `POST .../hosts/:agentId/maintenance` | `{ host }` |
+| `getHostMaintenance({ siteId, agentId })` | `GET .../hosts/:agentId/maintenance` | `{ maintenance }` |
 | `refreshHost({ siteId, agentId })` | `POST .../hosts/:agentId/refresh` | `{ host }` |
 | `uninstallHost({ siteId, agentId })` | `POST .../hosts/:agentId/uninstall` | `{ ok, uninstalled, note }` |
 | `updateHostAgent({ siteId, agentId })` | `POST .../hosts/:agentId/update` | `{ ok, note }` |

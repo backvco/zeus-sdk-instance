@@ -296,6 +296,42 @@ export class ProxmoxSitesService {
   }
 
   /**
+   * Set or clear an operator maintenance flag on a Proxmox connector host —
+   * pulls it out of VM-placement service (isHostPlaceable) while leaving its
+   * health state alone (it still reports 'online' if the tunnel/PVE agree).
+   * Use for a host that's up but shouldn't receive new VMs, e.g. a failing
+   * disk awaiting replacement.
+   *
+   * @param {object} params
+   * @param {string} params.siteId
+   * @param {string} params.agentId
+   * @param {boolean} params.enabled
+   * @param {string} [params.reason]
+   * @returns {Promise<{ host: object }>}
+   * @example
+   * await sdk.providers.proxmox.sites.setHostMaintenance({ siteId:'site1', agentId:'ag1', enabled:true, reason:'disk RMA' });
+   */
+  setHostMaintenance({ siteId, agentId, enabled, reason }) {
+    return this.sdk._fetch(`/providers/proxmox/sites/${this._s(siteId)}/hosts/${this._a(agentId)}/maintenance`, 'POST', {
+      body: { enabled, reason },
+    });
+  }
+
+  /**
+   * Get the current maintenance state for a host.
+   *
+   * @param {object} params
+   * @param {string} params.siteId
+   * @param {string} params.agentId
+   * @returns {Promise<{ maintenance: object|null }>}
+   * @example
+   * const { maintenance } = await sdk.providers.proxmox.sites.getHostMaintenance({ siteId:'site1', agentId:'ag1' });
+   */
+  getHostMaintenance({ siteId, agentId }) {
+    return this.sdk._fetch(`/providers/proxmox/sites/${this._s(siteId)}/hosts/${this._a(agentId)}/maintenance`, 'GET');
+  }
+
+  /**
    * Refresh a host's facts from its live agent.
    *
    * @param {object} params
