@@ -332,6 +332,42 @@ export class ProxmoxSitesService {
   }
 
   /**
+   * Diagnose a connector host's LOCAL VM-disk storage: whether 'local'-mode
+   * placement can resolve a store on it, which registered entries are stale
+   * (backend missing on the host), which existing pools could be registered,
+   * and the guided repair plan.
+   *
+   * @param {object} params
+   * @param {string} params.siteId
+   * @param {string} params.agentId
+   * @returns {Promise<{ diagnosis: { state:'ok'|'stale-entries'|'repairable'|'unrepairable', localStorageId:string|null, staleEntries:object[], candidates:object[], plan:object[] } }>}
+   * @example
+   * const { diagnosis } = await sdk.providers.proxmox.sites.storageDoctorDiagnose({ siteId:'site1', agentId:'ag1' });
+   */
+  storageDoctorDiagnose({ siteId, agentId }) {
+    return this.sdk._fetch(`/providers/proxmox/sites/${this._s(siteId)}/hosts/${this._a(agentId)}/storage-doctor`, 'GET');
+  }
+
+  /**
+   * Apply a storage-doctor repair plan exactly as diagnosed (registration
+   * only — never touches data on disk; 409s if storage state changed since
+   * the diagnosis was shown).
+   *
+   * @param {object} params
+   * @param {string} params.siteId
+   * @param {string} params.agentId
+   * @param {object[]} params.plan  the plan array from storageDoctorDiagnose
+   * @returns {Promise<{ result: { ok:boolean, applied:string[], localStorageId:string|null, error?:string }, diagnosis: object }>}
+   * @example
+   * await sdk.providers.proxmox.sites.storageDoctorRepair({ siteId:'site1', agentId:'ag1', plan: diagnosis.plan });
+   */
+  storageDoctorRepair({ siteId, agentId, plan }) {
+    return this.sdk._fetch(`/providers/proxmox/sites/${this._s(siteId)}/hosts/${this._a(agentId)}/storage-doctor`, 'POST', {
+      body: { plan },
+    });
+  }
+
+  /**
    * Refresh a host's facts from its live agent.
    *
    * @param {object} params
