@@ -107,4 +107,46 @@ export class SystemService {
    * const { workspaces } = await sdk.system.dashboardWorkspaces();
    */
   dashboardWorkspaces() { return this.sdk._fetch('/dashboard/workspaces', 'GET'); }
+
+  /**
+   * Get this instance's running Zeus version vs. the latest known to the
+   * console (from the last heartbeat) — used to surface an "update available"
+   * indicator in the sidebar.
+   *
+   * @returns {Promise<{ current: string, latest: string | null, updateAvailable: boolean }>}
+   * @example
+   * const { current, latest, updateAvailable } = await sdk.system.version();
+   */
+  version() { return this.sdk._fetch('/system/version', 'GET'); }
+
+  /**
+   * Kick off an in-app self-upgrade via the console (host agent pulls the
+   * latest image and recreates this container — migrations auto-run on
+   * boot). This process may die mid-upgrade; poll {@link upgradeStatus} and
+   * eventually {@link version} rather than waiting on this call's response
+   * to mean "done".
+   *
+   * @returns {Promise<{ started: boolean, upToDate?: boolean }>}
+   * @example
+   * const { started, upToDate } = await sdk.system.upgrade();
+   */
+  upgrade() { return this.sdk._fetch('/system/upgrade', 'POST'); }
+
+  /**
+   * Poll the console-reported status of the current/last self-upgrade run.
+   *
+   * @returns {Promise<{
+   *   zeusVersion: string,
+   *   currentImage: string,
+   *   latestVersion: string,
+   *   latestImage: string,
+   *   upgradeStatus: 'running' | 'failed' | 'succeeded' | null,
+   *   upgradeStep: string | null,
+   *   upgradeError: string | null,
+   *   lastUpgradeAt: string | null,
+   * }>}
+   * @example
+   * const { upgradeStatus, upgradeStep } = await sdk.system.upgradeStatus();
+   */
+  upgradeStatus() { return this.sdk._fetch('/system/upgrade/status', 'GET'); }
 }

@@ -14,6 +14,9 @@ belong to a single resource.
 | `geocode({ query })` | POST `/api/geo/geocode` | Geocode a place query (connectivity geo map) |
 | `browseFilesystem({ path? })` | GET `/api/filesystem/browse` | Host directory listing for path pickers → `{ path, parent, entries }` |
 | `dashboardWorkspaces()` | GET `/api/dashboard/workspaces` | Landing-page container summaries → `{ workspaces }` |
+| `version()` | GET `/api/system/version` | Running vs. latest Zeus version → `{ current, latest, updateAvailable }` |
+| `upgrade()` | POST `/api/system/upgrade` | Start a self-upgrade via the console → `{ started, upToDate? }` |
+| `upgradeStatus()` | GET `/api/system/upgrade/status` | Console-reported upgrade run status → `{ upgradeStatus, upgradeStep, upgradeError, ... }` |
 
 ```js
 const { ip } = await sdk.system.egressIp();
