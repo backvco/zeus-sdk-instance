@@ -122,15 +122,42 @@ export class SystemService {
   /**
    * Kick off an in-app self-upgrade via the console (host agent pulls the
    * latest image and recreates this container — migrations auto-run on
-   * boot). This process may die mid-upgrade; poll {@link upgradeStatus} and
-   * eventually {@link version} rather than waiting on this call's response
-   * to mean "done".
+   * boot). Enters a server-owned "pending" countdown first — every logged-in
+   * user of this instance sees the same countdown (broadcast on the
+   * `system:upgrade` SSE channel, see {@link upgradePendingStatus}) and any
+   * of them can abort it via {@link abortUpgrade}. This process may die
+   * mid-upgrade; poll {@link upgradeStatus} and eventually {@link version}
+   * rather than waiting on this call's response to mean "done".
    *
-   * @returns {Promise<{ started: boolean, upToDate?: boolean }>}
+   * @returns {Promise<{ started: boolean, upToDate?: boolean, pending?: boolean, deadline?: string|null, initiator?: string, countdownSeconds?: number }>}
    * @example
-   * const { started, upToDate } = await sdk.system.upgrade();
+   * const { started, pending, deadline } = await sdk.system.upgrade();
    */
   upgrade() { return this.sdk._fetch('/system/upgrade', 'POST'); }
+
+  /**
+   * Get the current instance-wide pending-upgrade countdown state (in-memory,
+   * this process). Used to catch up late-joining tabs/users who weren't
+   * connected to the `system:upgrade` SSE channel when the countdown began.
+   *
+   * @returns {Promise<{ phase: 'pending'|'aborted'|'started'|null, deadline: string|null, initiator: string|null, abortedBy: string|null, countdownSeconds: number|null }>}
+   * @example
+   * const { phase, deadline, initiator } = await sdk.system.upgradePendingStatus();
+   */
+  upgradePendingStatus() { return this.sdk._fetch('/system/upgrade/pending', 'GET'); }
+
+  /**
+   * Abort a pending (not-yet-started) self-upgrade countdown. Any
+   * authenticated user of this instance may call this — deliberately not
+   * admin-gated, since an in-progress countdown interrupts everyone's work.
+   * A 409 means the upgrade already left the pending phase (already running,
+   * or already aborted) — safe to ignore and let SSE/poll settle.
+   *
+   * @returns {Promise<{ aborted: boolean }>}
+   * @example
+   * await sdk.system.abortUpgrade();
+   */
+  abortUpgrade() { return this.sdk._fetch('/system/upgrade/abort', 'POST'); }
 
   /**
    * Poll the console-reported status of the current/last self-upgrade run.
