@@ -1,6 +1,6 @@
 {
   "name": "@zeusk8s/sdk-instance",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "JavaScript client SDK for the Zeus instance API (cluster/environment/infrastructure management). Works in the browser (session-cookie auth) and Node.js (service-token auth).",
   "type": "module",
   "main": "src/index.js",
