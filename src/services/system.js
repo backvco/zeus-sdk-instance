@@ -113,11 +113,13 @@ export class SystemService {
    * console (from the last heartbeat) — used to surface an "update available"
    * indicator in the sidebar.
    *
+   * @param {object} [opts]
+   * @param {AbortSignal} [opts.signal] - Optional abort signal (timeouts / cancellation).
    * @returns {Promise<{ current: string, latest: string | null, updateAvailable: boolean }>}
    * @example
    * const { current, latest, updateAvailable } = await sdk.system.version();
    */
-  version() { return this.sdk._fetch('/system/version', 'GET'); }
+  version({ signal } = {}) { return this.sdk._fetch('/system/version', 'GET', { signal }); }
 
   /**
    * Kick off an in-app self-upgrade via the console (host agent pulls the
@@ -172,10 +174,12 @@ export class SystemService {
    *   upgradeError: string | null,
    *   lastUpgradeAt: string | null,
    * }>}
+   * @param {object} [opts]
+   * @param {AbortSignal} [opts.signal] - Optional abort signal (timeouts / cancellation).
    * @example
    * const { upgradeStatus, upgradeStep } = await sdk.system.upgradeStatus();
    */
-  upgradeStatus() { return this.sdk._fetch('/system/upgrade/status', 'GET'); }
+  upgradeStatus({ signal } = {}) { return this.sdk._fetch('/system/upgrade/status', 'GET', { signal }); }
 
   /**
    * Get the CALLING user's dismissed console-notice ids (companion read to
