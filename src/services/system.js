@@ -176,4 +176,28 @@ export class SystemService {
    * const { upgradeStatus, upgradeStep } = await sdk.system.upgradeStatus();
    */
   upgradeStatus() { return this.sdk._fetch('/system/upgrade/status', 'GET'); }
+
+  /**
+   * Get the CALLING user's dismissed console-notice ids (companion read to
+   * the write-only dismiss action below). Self-service — always scoped to
+   * the session's own user, never another user's.
+   *
+   * @returns {Promise<{ dismissed: string[] }>}
+   * @example
+   * const { dismissed } = await sdk.system.dismissedNotices();
+   */
+  dismissedNotices() { return this.sdk._fetch('/console/dismissals', 'GET'); }
+
+  /**
+   * Dismiss a console notice for the CALLING user.
+   *
+   * @param {object} params
+   * @param {string} params.noticeId - Notice id to dismiss.
+   * @returns {Promise<{ ok: true }>}
+   * @example
+   * await sdk.system.dismissNotice({ noticeId: 'plan-limit-vcpu' });
+   */
+  dismissNotice({ noticeId }) {
+    return this.sdk._fetch('/console/dismiss', 'POST', { body: { noticeId } });
+  }
 }

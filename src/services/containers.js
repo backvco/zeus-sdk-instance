@@ -13,11 +13,12 @@ export class ContainersService {
   constructor(sdk) { this.sdk = sdk; }
 
   /**
-   * Get workspace-level config used by tab loaders (root DNS domain + zone).
+   * Get workspace-level config used by tab loaders (root DNS domain + zone,
+   * plus the instance's default cluster context).
    *
-   * @returns {Promise<{ rootDomain: string, rootDomainZoneId: string }>}
+   * @returns {Promise<{ rootDomain: string, rootDomainZoneId: string, defaultCluster: string }>}
    * @example
-   * const { rootDomain } = await sdk.containers.config();
+   * const { rootDomain, defaultCluster } = await sdk.containers.config();
    */
   config() { return this.sdk._fetch('/v2configs/config', 'GET'); }
 
