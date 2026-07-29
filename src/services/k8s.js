@@ -83,6 +83,24 @@ export class K8sService {
   }
 
   /**
+   * List pods matching a label selector within one namespace, mapped to the
+   * minimal `{ name, container }` shape (e.g. for multi-pod log viewers).
+   *
+   * @param {object} params
+   * @param {string} params.cluster   - Kube context (required).
+   * @param {string} params.namespace - Namespace (required).
+   * @param {string} params.selector  - Label selector, e.g. 'app=web,tier=fe' (required).
+   * @returns {Promise<{ pods: Array<{ name: string, container: null }> }>}
+   * @example
+   * const { pods } = await sdk.k8s.podsBySelector({ cluster: 'z-01', namespace: 'default', selector: 'app=web' });
+   */
+  podsBySelector({ cluster, namespace, selector } = {}) {
+    return this.sdk._fetch('/k8s/pods', 'GET', {
+      query: { action: 'by-selector', cluster, namespace, selector },
+    });
+  }
+
+  /**
    * Read one pod's detail bundle (spec-derived fields + status). Optional
    * `include` parts: `'yaml'` (raw spec), `'metrics'` (Prometheus series),
    * `'events'` (pod-scoped events).
