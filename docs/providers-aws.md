@@ -80,7 +80,7 @@ idempotent. `clustersByVpc` requires `region`.
 | `regionEksVersions({ region })` | `GET …/[region]/eks-versions` | `{ versions }` |
 | `regionSecurityGroups({ region, vpcId?, accountId? })` | `GET …/[region]/security-groups` | `{ groups }` |
 | `regionVpcs({ region, accountId?, branch? })` | `GET …/[region]/vpcs` | `{ vpcs }` |
-| `vpc({ region, vpcId })` | `GET …/[region]/vpcs/[vpcId]` | `{ vpc, subnets, nats, igws, routeTables }` |
+| `vpc({ region, vpcId, accountId? })` | `GET …/[region]/vpcs/[vpcId]` | `{ vpc, subnets, nats, igws, routeTables }` |
 | `vpcAdoptPreview({ region, vpcId, accountId?, branch? })` | `GET …/[vpcId]/adopt` | `{ preview }` |
 | `vpcAdopt({ region, vpcId, bundleName, dryRun?, accountId?, branch? })` | `POST …/[vpcId]/adopt` | `{ bundle, dryRun }` |
 

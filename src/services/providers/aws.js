@@ -184,14 +184,17 @@ export class AwsService {
    * Read-only detail for one live VPC (zeus-managed or not). 404 if not found.
    *
    * @param {object} params
-   * @param {string} params.region - AWS region.
-   * @param {string} params.vpcId  - VPC id.
+   * @param {string} params.region      - AWS region.
+   * @param {string} params.vpcId      - VPC id.
+   * @param {string} [params.accountId] - Scope to one linked account.
    * @returns {Promise<{ vpc: object, subnets: Array<object>, nats: Array<object>, igws: Array<object>, routeTables: Array<object> }>}
    * @example
    * const { vpc, subnets } = await sdk.providers.aws.vpc({ region: 'us-east-2', vpcId: 'vpc-abc' });
    */
-  vpc({ region, vpcId }) {
-    return this.sdk._fetch(`/providers/aws/regions/${this._r(region)}/vpcs/${encodeURIComponent(vpcId)}`, 'GET');
+  vpc({ region, vpcId, accountId }) {
+    return this.sdk._fetch(`/providers/aws/regions/${this._r(region)}/vpcs/${encodeURIComponent(vpcId)}`, 'GET', {
+      query: { accountId },
+    });
   }
 
   /**
