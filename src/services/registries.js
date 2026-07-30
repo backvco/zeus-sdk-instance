@@ -52,8 +52,10 @@ export class RegistriesService {
    * @param {string} params.type - Registry type (required, e.g. 'harbor').
    * @param {string} params.cluster - Cluster the registry lives on (required).
    * @param {string} params.project - Registry project/namespace (required).
-   * @param {string} [params.robot] - Robot account name.
-   * @param {string} [params.robotId] - Robot account id (links the stored secret).
+   * @param {string} [params.robot] - Push robot account name.
+   * @param {string} [params.robotId] - Push robot account id (links the stored secret).
+   * @param {string} [params.pullRobot] - Pull robot account name — environments inherit it for image pull secrets.
+   * @param {string} [params.pullRobotId] - Pull robot account id (links the stored secret).
    * @param {string} [params.host] - Registry host.
    * @param {boolean} [params.isDefault] - Make this the default registry.
    * @returns {Promise<{ id: string, name: string, type: string, cluster: string,
@@ -62,9 +64,9 @@ export class RegistriesService {
    * @example
    * await sdk.registries.create({ container: 'app1', name: 'prod', type: 'harbor', cluster: 'z-01', project: 'app1' });
    */
-  create({ container, name, type, cluster, project, robot, robotId, host, isDefault }) {
+  create({ container, name, type, cluster, project, robot, robotId, pullRobot, pullRobotId, host, isDefault }) {
     return this.sdk._fetch(`/v2configs/${encodeURIComponent(container)}/registries`, 'POST', {
-      body: { name, type, cluster, project, robot, robotId, host, isDefault },
+      body: { name, type, cluster, project, robot, robotId, pullRobot, pullRobotId, host, isDefault },
     });
   }
 
