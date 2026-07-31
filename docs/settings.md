@@ -114,9 +114,9 @@ await sdk.settings.mail.test({ to: 'me@example.com' });
 |--------|-------|-------|
 | `list()` | GET `/settings/npm-tokens` | → `{ tokens }` (no raw values) |
 | `test({ token, registryUrl? })` | POST `/settings/npm-tokens` `action:'test'` | → probe result; no save |
-| `create({ name, token, expiresAt?, registryUrl? })` | POST `/settings/npm-tokens` | → `{ npmToken }` |
+| `create({ name, token, expiresAt?, registryUrl?, scope? })` | POST `/settings/npm-tokens` | → `{ npmToken }` |
 | `get({ id })` | GET `/settings/npm-tokens/[id]` | → `{ npmToken }` |
-| `update({ id, name?, token?, expiresAt?, registryUrl? })` | PUT `/settings/npm-tokens/[id]` | → `{ npmToken }` |
+| `update({ id, name?, token?, expiresAt?, registryUrl?, scope? })` | PUT `/settings/npm-tokens/[id]` | → `{ npmToken }` |
 | `testStored({ id })` | POST `/settings/npm-tokens/[id]` `action:'test'` | → probe stored token |
 | `delete({ id })` | DELETE `/settings/npm-tokens/[id]` | → `{ ok }` |
 

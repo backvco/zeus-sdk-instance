@@ -44,13 +44,14 @@ export class NpmTokensService {
    * @param {string} params.token
    * @param {string} [params.expiresAt] - ISO timestamp.
    * @param {string} [params.registryUrl]
+   * @param {string} [params.scope] - npm scope routed to this registry (e.g. '@tiptap-pro').
    * @returns {Promise<{ npmToken: object }>} Sanitized record.
    * @route POST /api/settings/npm-tokens
    * @example
    * const { npmToken } = await sdk.settings.npmTokens.create({ name: 'ci', token: 'npm_...' });
    */
-  create({ name, token, expiresAt, registryUrl }) {
-    return this.sdk._fetch('/settings/npm-tokens', 'POST', { body: { name, token, expiresAt, registryUrl } });
+  create({ name, token, expiresAt, registryUrl, scope }) {
+    return this.sdk._fetch('/settings/npm-tokens', 'POST', { body: { name, token, expiresAt, registryUrl, scope } });
   }
 
   /**
@@ -74,13 +75,14 @@ export class NpmTokensService {
    * @param {string} [params.token]
    * @param {string} [params.expiresAt]
    * @param {string} [params.registryUrl]
+   * @param {string} [params.scope] - npm scope routed to this registry (e.g. '@tiptap-pro').
    * @returns {Promise<{ npmToken: object }>} Updated sanitized record.
    * @route PUT /api/settings/npm-tokens/[id]
    * @example
    * await sdk.settings.npmTokens.update({ id: 'tok-1', name: 'renamed' });
    */
-  update({ id, name, token, expiresAt, registryUrl }) {
-    return this.sdk._fetch(`/settings/npm-tokens/${encodeURIComponent(id)}`, 'PUT', { body: { name, token, expiresAt, registryUrl } });
+  update({ id, name, token, expiresAt, registryUrl, scope }) {
+    return this.sdk._fetch(`/settings/npm-tokens/${encodeURIComponent(id)}`, 'PUT', { body: { name, token, expiresAt, registryUrl, scope } });
   }
 
   /**
