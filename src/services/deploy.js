@@ -504,6 +504,7 @@ export class DeployService {
    *
    * @param {object} params
    * @param {Array<object>} params.permissions - The DSL rows.
+   * @param {string} [params.accountId] - Registered AWS account to validate against (default account when omitted).
    * @returns {Promise<{
    *   policy: object|null,
    *   findings: Array<{ findingType, issueCode, message, learnMoreLink?, locations }>,
@@ -512,8 +513,8 @@ export class DeployService {
    * @example
    * const { findings } = await sdk.deploy.validatePolicy({ permissions: [{ service: 's3', actions: ['GetObject'] }] });
    */
-  validatePolicy({ permissions }) {
-    return this.sdk._fetch('/v2configs/identities/validate-policy', 'POST', { body: { permissions } });
+  validatePolicy({ permissions, accountId }) {
+    return this.sdk._fetch('/v2configs/identities/validate-policy', 'POST', { body: { permissions, accountId } });
   }
 
   /**

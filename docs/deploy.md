@@ -188,7 +188,7 @@ Full AWS IAM action universe; `op`=`services`|`actions`|`resource-types`. **`GET
 const { actions } = await sdk.deploy.identitiesIamCatalog({ op: 'actions', service: 's3' });
 ```
 
-### `validatePolicy({ permissions })`
+### `validatePolicy({ permissions, accountId? })`
 Compile DSL → IAM policy + AccessAnalyzer findings. **`POST /api/v2configs/identities/validate-policy`**
 - Returns: `{ policy, findings, bytes, byteLimit, error? }`
 
