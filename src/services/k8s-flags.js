@@ -83,4 +83,54 @@ export class K8sFlagsService {
   delete({ id } = {}) {
     return this.sdk._fetch(`/k8s/event-flags/${encodeURIComponent(id)}`, 'DELETE');
   }
+
+  /**
+   * Add a discussion comment to a flag.
+   *
+   * @param {object} params
+   * @param {string} params.id - Flag id.
+   * @param {string} params.text - Comment text (1-4000 chars).
+   * @returns {Promise<{ comment: object }>}
+   * @example
+   * const { comment } = await sdk.k8s.flags.flagComment({ id: 'flg_123', text: 'looking into it' });
+   */
+  flagComment({ id, text } = {}) {
+    return this.sdk._fetch(`/k8s/event-flags/${encodeURIComponent(id)}/comments`, 'POST', {
+      body: { action: 'add', text },
+    });
+  }
+
+  /**
+   * Edit a flag comment's text. Author-only — the server rejects (403) an
+   * edit from anyone but the comment's original author.
+   *
+   * @param {object} params
+   * @param {string} params.id - Flag id.
+   * @param {string} params.commentId - Comment id to edit.
+   * @param {string} params.text - New comment text (1-4000 chars).
+   * @returns {Promise<{ comment: object }>}
+   * @example
+   * await sdk.k8s.flags.flagCommentEdit({ id: 'flg_123', commentId: 'c_1', text: 'update' });
+   */
+  flagCommentEdit({ id, commentId, text } = {}) {
+    return this.sdk._fetch(`/k8s/event-flags/${encodeURIComponent(id)}/comments`, 'POST', {
+      body: { action: 'edit', commentId, text },
+    });
+  }
+
+  /**
+   * Delete a flag comment. Allowed for the comment's author or an admin.
+   *
+   * @param {object} params
+   * @param {string} params.id - Flag id.
+   * @param {string} params.commentId - Comment id to delete.
+   * @returns {Promise<{ deleted: true }>}
+   * @example
+   * await sdk.k8s.flags.flagCommentDelete({ id: 'flg_123', commentId: 'c_1' });
+   */
+  flagCommentDelete({ id, commentId } = {}) {
+    return this.sdk._fetch(`/k8s/event-flags/${encodeURIComponent(id)}/comments`, 'POST', {
+      body: { action: 'delete', commentId },
+    });
+  }
 }
