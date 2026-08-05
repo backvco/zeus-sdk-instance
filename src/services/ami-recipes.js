@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { resolveBaseRev } from '../cas.js';
 /**
  * AmiRecipesService — machine-image (AMI) recipes, builds, and distribution.
  *
@@ -96,14 +97,20 @@ export class AmiRecipesService {
    * @param {object} [params.stepContents] - Per-step script contents.
    * @param {object} [params.assetContents]- Asset file contents.
    * @param {string} [params.readme]       - README markdown.
+   * @param {number|null} [params.baseRev] - Revision this write is based on. Required by the
+   *   route whenever `recipe` is sent: pass the `_rev` you read (defaults from `recipe._rev`
+   *   when the recipe came from {@link get}); `null` asserts "no recipe exists yet". A
+   *   mismatch 409s (`kind: 'stale-save'`) without writing.
    * @returns {Promise<{ saved: object }>}
    * @example
    * await sdk.amiRecipes.save({ name: 'my-base', recipe, stepContents, assetContents, readme });
    */
-  save({ name, recipe, stepContents, assetContents, readme }) {
-    return this.sdk._fetch(`/ami-recipes/${encodeURIComponent(name)}`, 'PUT', {
-      body: { recipe, stepContents, assetContents, readme },
-    });
+  save({ name, recipe, stepContents, assetContents, readme, baseRev }) {
+    const body = { recipe, stepContents, assetContents, readme };
+    // baseRev only accompanies a recipe replace — asset/readme-only saves
+    // don't carry (or need) one.
+    if (recipe !== undefined) body.baseRev = resolveBaseRev(recipe, baseRev);
+    return this.sdk._fetch(`/ami-recipes/${encodeURIComponent(name)}`, 'PUT', { body });
   }
 
   /**

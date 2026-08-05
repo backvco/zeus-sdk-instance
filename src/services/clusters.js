@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { casMutate, resolveBaseRev } from '../cas.js';
 import { ClustersCoreService } from './clusters/core.js';
 import { ClusterNodegroupsService } from './clusters/nodegroups.js';
 import { ClusterSecurityService } from './clusters/security.js';
@@ -98,11 +99,56 @@ export class ClustersService extends ClustersCoreService {
    * @param {object} params.data - Full cluster config object.
    * @param {string} [params.branch='main']
    * @returns {Promise<{ cluster: object }>}
+   * The route enforces optimistic concurrency: the request must carry the
+   * `_rev` you read (`baseRev`), and a mismatch 409s (`kind: 'stale-save'`)
+   * without writing. When omitted, `baseRev` is taken from `data._rev`
+   * (present whenever `data` came from {@link get}); with neither it sends
+   * `null` ("no doc expected yet"), which 409s if one exists. Prefer
+   * {@link mutate} for programmatic edits.
+   *
+   * @param {number|null} [params.baseRev] - Revision this write is based on (default `data._rev ?? null`).
    * @example
-   * await sdk.clusters.update({ container:'app1', name:'z-01', data:{ ...cluster, region:'us-west-2' } });
+   * const { cluster } = await sdk.clusters.get({ container:'app1', name:'z-01' });
+   * cluster.region = 'us-west-2';
+   * await sdk.clusters.update({ container:'app1', name:'z-01', data: cluster });
    */
-  update({ container, name, data, branch }) {
-    return this.sdk._fetch(this._base(container, name), 'PUT', { body: { data, branch } });
+  update({ container, name, data, branch, baseRev }) {
+    return this.sdk._fetch(this._base(container, name), 'PUT', {
+      body: { data, branch, baseRev: resolveBaseRev(data, baseRev) },
+    });
+  }
+
+  /**
+   * Read-mutate-write a cluster with automatic stale-save retry.
+   * Fetches the current doc, applies `fn` (edit in place or return a
+   * replacement), saves with the fetched `_rev` — and on a stale-save 409
+   * re-fetches and re-applies `fn` to the fresh doc (safe CAS retry, never a
+   * merge of stale state).
+   *
+   * @param {object} params
+   * @param {string} params.container
+   * @param {string} params.name
+   * @param {string} [params.branch='main']
+   * @param {number} [params.retries=3] - Stale-save retries.
+   * @param {(cluster: object) => object|void|Promise<object|void>} fn - Mutation to apply.
+   * @returns {Promise<{ cluster: object }>}
+   * @example
+   * await sdk.clusters.mutate({ container:'app1', name:'z-01' }, (c) => { c.labels = { tier: 'prod' }; });
+   */
+  mutate({ container, name, branch, retries } = {}, fn) {
+    return casMutate({
+      // `capabilities` / `linked` / `sourceContainer` are computed by the GET
+      // route at read time, not part of the stored doc — writing them back
+      // would persist stale copies, so strip before mutating.
+      read: async () => {
+        const { cluster } = await this.get({ container, name, branch });
+        const { capabilities, linked, sourceContainer, ...doc } = cluster || {};
+        return doc;
+      },
+      write: (data, baseRev) => this.update({ container, name, data, branch, baseRev }),
+      mutate: fn,
+      retries,
+    });
   }
 
   /**

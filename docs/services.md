@@ -29,10 +29,23 @@ Get one service. `GET /api/v2configs/[container]/services/[name]` → `{ service
 const { service } = await sdk.services.get({ container: 'app1', name: 'api' });
 ```
 
-### `update({ container, name, data, branch })`
-Replace a service config. `PUT /api/v2configs/[container]/services/[name]` → `{ service }`.
+### `update({ container, name, data, branch, baseRev? })`
+Replace a service config. `PUT /api/v2configs/[container]/services/[name]` → `{ service }` (includes the new `_rev`).
+Optimistic concurrency: the route **requires** `baseRev` (defaults from `data._rev`, present
+whenever `data` came from `get()`; `null` asserts "no doc exists yet"). Mismatch → HTTP 409
+`{ kind: 'stale-save', currentRev }`, nothing written. Prefer `mutate()` for programmatic edits.
 ```js
-await sdk.services.update({ container: 'app1', name: 'api', data: {...} });
+const { service } = await sdk.services.get({ container: 'app1', name: 'api' });
+service.replicas = 3;
+await sdk.services.update({ container: 'app1', name: 'api', data: service });
+```
+
+### `mutate({ container, name, branch?, retries? }, fn)`
+Read-mutate-write with automatic stale-save retry: fetch → apply `fn` (edit in place or
+return a replacement) → save with the fetched `_rev`; on 409 re-fetch and re-apply `fn`
+(CAS retry, never a stale merge). `retries` defaults to 3.
+```js
+await sdk.services.mutate({ container: 'app1', name: 'api' }, (svc) => { svc.replicas = 3; });
 ```
 
 ### `delete({ container, name, branch })`

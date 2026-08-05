@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { casMutate, resolveBaseRev } from '../cas.js';
 /**
  * EnvironmentsService — v2configs environments, accessed as `sdk.environments`.
  *
@@ -91,11 +92,38 @@ export class EnvironmentsService {
    * @param {object} [params.data]     - New config document.
    * @param {string} [params.branch='main'] - Config branch.
    * @returns {Promise<{ environment: object }>}
+   * Optimistic concurrency (see docs/environments.md): sends `baseRev`
+   * (default `data._rev ?? null`); a mismatch 409s `{ kind: 'stale-save' }`
+   * without writing. Prefer {@link mutate} for programmatic edits.
+   *
+   * @param {number|null} [params.baseRev] - Revision this write is based on (default `data._rev ?? null`).
    * @example
-   * await sdk.environments.update({ container: 'app1', name: 'dev-d00', data: env });
+   * await sdk.environments.update({ container: 'app1', name: 'dev-d00', data: env }); // env from get(), carries _rev
    */
-  update({ container, name, data, branch } = {}) {
-    return this.sdk._fetch(this._env(container, name), 'PUT', { body: { data, branch } });
+  update({ container, name, data, branch, baseRev } = {}) {
+    return this.sdk._fetch(this._env(container, name), 'PUT', {
+      body: { data, branch, baseRev: resolveBaseRev(data, baseRev) },
+    });
+  }
+
+  /**
+   * Read-mutate-write with automatic stale-save retry: fetch → apply `fn` →
+   * save with the fetched `_rev`; on 409 re-fetch and re-apply `fn` (CAS
+   * retry, never a stale merge). See casMutate in ../cas.js.
+   *
+   * @param {{container: string, name: string, branch?: string, retries?: number}} params
+   * @param {(environment: object) => object|void|Promise<object|void>} fn - Mutation to apply.
+   * @returns {Promise<{ environment: object }>}
+   * @example
+   * await sdk.environments.mutate({ container: 'app1', name: 'dev-d00' }, (env) => { env.suspended = false; });
+   */
+  mutate({ container, name, branch, retries } = {}, fn) {
+    return casMutate({
+      read: async () => (await this.get({ container, name, branch })).environment,
+      write: (data, baseRev) => this.update({ container, name, data, branch, baseRev }),
+      mutate: fn,
+      retries,
+    });
   }
 
   /**

@@ -26,7 +26,8 @@ Two sub-namespaces:
 | `list({ container, branch? })` | `GET /infrastructure` | `{ addons }` |
 | `save({ container, name, data, branch? })` | `POST /infrastructure` | `{ addon }` |
 | `get({ container, name, branch? })` | `GET /infrastructure/[name]` | `{ addon }` |
-| `update({ container, name, data, branch? })` | `PUT /infrastructure/[name]` | `{ addon }` |
+| `update({ container, name, data, branch?, baseRev? })` | `PUT /infrastructure/[name]` — requires `baseRev` (defaults from `data._rev`; `null` = first per-container write; mismatch → 409 `stale-save`) | `{ addon }` |
+| `mutate({ container, name, branch?, retries? }, fn)` | read-mutate-write with stale-save CAS retry; handles root-catalog fallback (`_ownContainer`) and strips read-time decorations | `{ addon }` |
 | `remove({ container, name, branch? })` | `DELETE /infrastructure/[name]` | `{ success: true }` |
 
 ```js

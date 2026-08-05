@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { ServiceIdentitiesService } from './identities.js';
 import { ServiceRegistryService } from './registry.js';
+import { casMutate, resolveBaseRev } from '../cas.js';
 
 /**
  * ServicesService — v2configs services (workload definitions) for a container.
@@ -76,17 +77,56 @@ export class ServicesService {
    * Update a service (replaces its config blob).
    * Route: PUT /api/v2configs/[container]/services/[name]
    *
+   * The route enforces optimistic concurrency: the request must carry the
+   * `_rev` you read (`baseRev`), and a mismatch 409s (`kind: 'stale-save'`)
+   * without writing — so a stale copy can never silently revert someone
+   * else's fields. When `baseRev` is omitted it is taken from `data._rev`
+   * (present whenever `data` came from {@link get}); a doc with neither
+   * sends `null`, which asserts "no doc exists yet" and 409s if one does.
+   * Prefer {@link mutate} for programmatic edits — it handles all of this.
+   *
    * @param {object} params
    * @param {string} params.container     - Workspace container.
    * @param {string} params.name          - Service name.
    * @param {object} params.data          - New service config blob.
    * @param {string} [params.branch='main'] - Config branch.
+   * @param {number|null} [params.baseRev] - Revision this write is based on (default `data._rev ?? null`).
    * @returns {Promise<{ service: object }>}
    * @example
-   * await sdk.services.update({ container: 'app1', name: 'api', data: { ...service } });
+   * const { service } = await sdk.services.get({ container: 'app1', name: 'api' });
+   * service.replicas = 3;
+   * await sdk.services.update({ container: 'app1', name: 'api', data: service });
    */
-  update({ container, name, data, branch }) {
-    return this.sdk._fetch(`/v2configs/${container}/services/${encodeURIComponent(name)}`, 'PUT', { body: { data, branch } });
+  update({ container, name, data, branch, baseRev }) {
+    return this.sdk._fetch(`/v2configs/${container}/services/${encodeURIComponent(name)}`, 'PUT', {
+      body: { data, branch, baseRev: resolveBaseRev(data, baseRev) },
+    });
+  }
+
+  /**
+   * Read-mutate-write a service with automatic stale-save retry.
+   * Fetches the current doc, applies `fn` (edit in place or return a
+   * replacement), saves with the fetched `_rev` — and on a stale-save 409
+   * re-fetches and re-applies `fn` to the fresh doc (safe CAS retry, never a
+   * merge of stale state).
+   *
+   * @param {object} params
+   * @param {string} params.container     - Workspace container.
+   * @param {string} params.name          - Service name.
+   * @param {string} [params.branch='main'] - Config branch.
+   * @param {number} [params.retries=3]   - Stale-save retries.
+   * @param {(service: object) => object|void|Promise<object|void>} fn - Mutation to apply.
+   * @returns {Promise<{ service: object }>}
+   * @example
+   * await sdk.services.mutate({ container: 'app1', name: 'api' }, (svc) => { svc.replicas = 3; });
+   */
+  mutate({ container, name, branch, retries } = {}, fn) {
+    return casMutate({
+      read: async () => (await this.get({ container, name, branch })).service,
+      write: (data, baseRev) => this.update({ container, name, data, branch, baseRev }),
+      mutate: fn,
+      retries,
+    });
   }
 
   /**
