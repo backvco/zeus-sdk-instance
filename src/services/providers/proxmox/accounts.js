@@ -102,22 +102,30 @@ export class ProxmoxAccountsService {
   // ── Template building ──────────────────────────────────────────────────────
 
   /**
-   * Get template-build options (available distros + bundled packages).
+   * Get template-build options (available distros + bundled packages + the
+   * built-in system presets everyone can pick, e.g. the rtpengine kernel
+   * module preset).
    *
    * @param {object} params
    * @param {string} params.id
-   * @returns {Promise<{ distros: Array, includedPackages: Array, recipeVersion: string }>}
+   * @returns {Promise<{ distros: Array, includedPackages: Array, recipeVersion: string, presets: Array<{ id: string, version: number, displayName: string, description: string, distro: string, arch: string, rtpengineRef?: string, suggestedName: string }> }>}
    * @example
-   * const { distros } = await sdk.providers.proxmox.accounts.buildTemplateOptions({ id: 'acc1' });
+   * const { distros, presets } = await sdk.providers.proxmox.accounts.buildTemplateOptions({ id: 'acc1' });
    */
   buildTemplateOptions({ id }) { return this.sdk._fetch(`${this._base(id)}/build-template`, 'GET'); }
 
   /**
    * Build a cloud-init VM template across nodes. STREAMING (SSE).
    *
+   * Pass EITHER a built-in `presetId` (forces distro/arch and supplies its own
+   * packages/first-boot script server-side) OR the free-form `distro`/`arch`/
+   * `extraPackages`/`bootScript` fields — `presetId` and `bootScript` are
+   * mutually exclusive (400 if both are set).
+   *
    * @param {object} params - id + build spec (passed through).
    * @param {string} params.id
    * @param {string} [params.storage]
+   * @param {string} [params.presetId] - Built-in system preset id (e.g. `'rtpengine-node'`) from `buildTemplateOptions().presets`. Forces distro/arch and merges the preset's own extraPackages.
    * @param {string} [params.distro]
    * @param {string} [params.arch]
    * @param {number} [params.vmid]
@@ -127,11 +135,14 @@ export class ProxmoxAccountsService {
    * @param {string} [params.sha256]
    * @param {string} [params.homeNode]
    * @param {string[]} [params.extraPackages]
-   * @param {string} [params.bootScript]
+   * @param {string} [params.bootScript] - Mutually exclusive with `presetId`.
    * @returns {ReturnType<import('../../../stream.js').openStream>} SSE stream handle. Terminal `done` payload `{ message, templates, failures, shared, arch }`.
    * @example
    * const s = sdk.providers.proxmox.accounts.buildTemplate({ id:'acc1', distro:'ubuntu-24.04', nodes:['pve1'], storage:'local-zfs' });
    * for await (const ev of s) console.log(ev);
+   * @example
+   * // Built-in system preset
+   * const s2 = sdk.providers.proxmox.accounts.buildTemplate({ id:'acc1', presetId:'rtpengine-node', storage:'local-zfs' });
    */
   buildTemplate({ id, ...spec }) {
     return this.sdk._stream(`${this._base(id)}/build-template`, 'POST', { body: spec });
