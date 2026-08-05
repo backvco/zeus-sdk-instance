@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { casMutate, resolveBaseRev } from '../cas.js';
 import { InfrastructureRotateService } from './infrastructure/rotate.js';
 import { InfrastructureBackupsService } from './infrastructure/backups.js';
 
@@ -99,12 +100,52 @@ export class InfrastructureService {
    * @param {object} params.data      - Addon definition JSON.
    * @param {string} [params.branch]  - Config branch (default 'main').
    * @returns {Promise<{ addon: object }>}
+   * Optimistic concurrency (see docs/infrastructure.md): sends `baseRev`
+   * (default `data._rev ?? null`); a mismatch 409s `{ kind: 'stale-save' }`.
+   * NOTE: when {@link get} returned the ROOT catalog doc (`_ownContainer:
+   * false`) its `_rev` is the root's — pass `baseRev: null` for the first
+   * per-container write. Prefer {@link mutate}, which handles this.
+   *
+   * @param {number|null} [params.baseRev] - Revision this write is based on (default `data._rev ?? null`).
    * @example
    * await sdk.infrastructure.update({ container: 'app1', name: 'nats', data: {...} });
    */
-  update({ container, name, data, branch }) {
+  update({ container, name, data, branch, baseRev }) {
     return this.sdk._fetch(`${this._base(container)}/${encodeURIComponent(name)}`, 'PUT', {
-      body: { data, branch },
+      body: { data, branch, baseRev: resolveBaseRev(data, baseRev) },
+    });
+  }
+
+  /**
+   * Read-mutate-write with automatic stale-save retry (see casMutate in
+   * ../cas.js). Handles the root-catalog fallback: no container override yet
+   * → write asserts `baseRev: null` (create); read-time decorations
+   * (`_ownContainer`, `_shadow`) are stripped so they never persist.
+   *
+   * @param {{container: string, name: string, branch?: string, retries?: number}} params
+   * @param {(addon: object) => object|void|Promise<object|void>} fn - Mutation to apply.
+   * @returns {Promise<{ addon: object }>}
+   * @example
+   * await sdk.infrastructure.mutate({ container: 'app1', name: 'nats' }, (a) => { a.values.replicas = 3; });
+   */
+  mutate({ container, name, branch, retries } = {}, fn) {
+    return casMutate({
+      read: async () => {
+        const { addon } = await this.get({ container, name, branch });
+        const { _ownContainer, _shadow, ...doc } = addon || {};
+        if (_ownContainer === false) {
+          // Borrowed root-catalog doc: its _rev belongs to the ROOT doc, not
+          // this container's (which doesn't exist yet) — drop the rev fields
+          // so the write asserts baseRev:null (expect-create).
+          delete doc._rev;
+          delete doc._revAt;
+          delete doc._revBy;
+        }
+        return doc;
+      },
+      write: (data, baseRev) => this.update({ container, name, data, branch, baseRev }),
+      mutate: fn,
+      retries,
     });
   }
 

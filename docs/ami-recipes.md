@@ -58,9 +58,13 @@ Response: `{ recipe, readme, builds, targets }` — or the bundle object when `b
 const { recipe, builds } = await sdk.amiRecipes.get({ name: 'rtpengine' });
 ```
 
-### `save({ name, recipe })`
+### `save({ name, recipe, baseRev? })`
 Create-or-update a recipe definition (`recipe` is sent as the body). System
 recipes are read-only.
+When `recipe` is sent the route **requires** `baseRev` (defaults from `recipe._rev`,
+present when the recipe came from `get()`; `null` asserts "no recipe exists yet");
+a mismatch returns HTTP 409 `{ kind: 'stale-save', currentRev }` without writing.
+Asset/readme-only saves don't need one.
 Response: `{ saved }`
 ```js
 await sdk.amiRecipes.save({ name: 'my-base', recipe: { description: 'x', arch: 'arm64' } });

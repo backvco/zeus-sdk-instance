@@ -25,7 +25,8 @@ for await (const ev of s) console.log(ev);
 | `list({ container, branch })` | `GET /clusters` | `{ clusters }` |
 | `create({ container, name, data, branch })` | `POST /clusters` | `{ cluster }` |
 | `get({ container, name, branch })` | `GET /clusters/[name]` | `{ cluster }` |
-| `update({ container, name, data, branch })` | `PUT /clusters/[name]` | `{ cluster }` |
+| `update({ container, name, data, branch, baseRev? })` | `PUT /clusters/[name]` — requires `baseRev` (defaults from `data._rev`; mismatch → 409 `stale-save`) | `{ cluster }` |
+| `mutate({ container, name, branch?, retries? }, fn)` | read-mutate-write with stale-save CAS retry; strips read-time `capabilities`/`linked`/`sourceContainer` | `{ cluster }` |
 | `delete({ container, name, branch })` | `DELETE /clusters/[name]` | `{ success: true }` |
 | `importList({ container, region, clusterName, branch })` | `GET /clusters/import` | `{ region, clusters }` or `{ preview }` |
 | `import({ container, branch, ...body })` | `POST /clusters/import` | `{ cluster, message }` |

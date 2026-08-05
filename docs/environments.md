@@ -32,8 +32,22 @@ await sdk.environments.create({ container: 'app1', name: 'dev-d00', data: {} });
 ### `get({ container, name, branch? })`
 → `GET /environments/[name]` · Returns `{ environment }` (404 if missing).
 
-### `update({ container, name, data?, branch? })`
-→ `PUT /environments/[name]` · Returns `{ environment }`.
+### `update({ container, name, data?, branch?, baseRev? })`
+→ `PUT /environments/[name]` · Returns `{ environment }` (includes the new `_rev`).
+Optimistic concurrency: the route **requires** `baseRev` — the `_rev` the doc had when you
+read it (defaults from `data._rev`, present whenever `data` came from `get()`; `null`
+asserts "no doc exists yet"). A mismatch returns HTTP 409 `{ kind: 'stale-save',
+currentRev }` and writes nothing — re-fetch, re-apply your change, retry (or use
+`mutate()`, which does exactly that).
+
+### `mutate({ container, name, branch?, retries? }, fn)`
+Read-mutate-write with automatic stale-save retry: fetches the current doc, applies `fn`
+(edit in place or return a replacement), saves with the fetched `_rev`; on a stale-save
+409 it re-fetches and re-applies `fn` against the fresh doc (CAS retry — never a merge of
+stale state). `retries` defaults to 3. Returns the successful `update()` result.
+```js
+await sdk.environments.mutate({ container: 'app1', name: 'dev-d00' }, (env) => { env.suspended = false; });
+```
 
 ### `delete({ container, name, branch? })`
 → `DELETE /environments/[name]` (branch via query) · Returns `{ success: true }`.
