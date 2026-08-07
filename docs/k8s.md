@@ -51,11 +51,13 @@ One pod's detail bundle. `include`: `'yaml'`, `'metrics'`, `'events'`. **`GET /a
 const p = await sdk.k8s.pod({ cluster: 'z-01', namespace: 'default', name: 'web-7d', include: ['yaml'] });
 ```
 
-### `deletePod({ name, namespace, cluster, force? })`
-Delete a pod (`force` = grace-period 0). **`DELETE /api/k8s/pods`**
+### `deletePod({ name, namespace, cluster, force?, gracePeriodSeconds? })`
+Delete a pod. `force` skips the normal graceful-shutdown wait, deleting after
+`gracePeriodSeconds` (default `0` = immediate) instead. **`DELETE /api/k8s/pods`**
 - Returns: `{ ok: true }`
 ```js
 await sdk.k8s.deletePod({ cluster: 'z-01', namespace: 'default', name: 'web-7d' });
+await sdk.k8s.deletePod({ cluster: 'z-02', namespace: 'd00', name: 'stuck-pod', force: true });
 ```
 
 ### `podMetrics({ cluster, namespace? })`

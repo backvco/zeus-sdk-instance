@@ -122,19 +122,22 @@ export class K8sService {
   }
 
   /**
-   * Delete a pod. `force` does an immediate (grace-period 0) deletion.
+   * Delete a pod. `force` skips the pod's normal graceful-shutdown wait,
+   * deleting after `gracePeriodSeconds` (default 0 = immediate) instead.
    *
    * @param {object} params
    * @param {string} params.name       - Pod name.
    * @param {string} params.namespace  - Namespace.
    * @param {string} params.cluster    - Kube context.
-   * @param {boolean} [params.force=false] - Force-delete (no grace period).
+   * @param {boolean} [params.force=false] - Force-delete.
+   * @param {number} [params.gracePeriodSeconds=0] - Grace period when `force` is true.
    * @returns {Promise<{ ok: true }>}
    * @example
    * await sdk.k8s.deletePod({ cluster: 'z-01', namespace: 'default', name: 'web-7d' });
+   * await sdk.k8s.deletePod({ cluster: 'z-02', namespace: 'd00', name: 'stuck-pod', force: true });
    */
-  deletePod({ name, namespace, cluster, force = false } = {}) {
-    return this.sdk._fetch('/k8s/pods', 'DELETE', { body: { name, namespace, cluster, force } });
+  deletePod({ name, namespace, cluster, force = false, gracePeriodSeconds = 0 } = {}) {
+    return this.sdk._fetch('/k8s/pods', 'DELETE', { body: { name, namespace, cluster, force, gracePeriodSeconds } });
   }
 
   /**
