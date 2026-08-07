@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { ServiceIdentitiesService } from './identities.js';
 import { ServiceRegistryService } from './registry.js';
+import { ServiceRunsService } from './service-runs.js';
 import { casMutate, resolveBaseRev } from '../cas.js';
 
 /**
@@ -13,16 +14,18 @@ import { casMutate, resolveBaseRev } from '../cas.js';
  * the core service CRUD plus a few read-only helpers used by the service UI
  * (builder override, cron-enable map, environment membership, volume mappings).
  *
- * Two sub-namespaces hang off it:
+ * Three sub-namespaces hang off it:
  *   - `sdk.services.identities` — per-service cloud identities ({@link ServiceIdentitiesService}).
  *   - `sdk.services.registry`   — image build/registry/scan/deploy ({@link ServiceRegistryService}),
  *                                 the legacy `/api/services/**` surface.
+ *   - `sdk.services.runs`       — ephemeral (run-to-completion) invocations ({@link ServiceRunsService}).
  */
 export class ServicesService {
   constructor(sdk) {
     this.sdk = sdk;
     this.identities = new ServiceIdentitiesService(sdk);
     this.registry = new ServiceRegistryService(sdk);
+    this.runs = new ServiceRunsService(sdk);
   }
 
   /**
