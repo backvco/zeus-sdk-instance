@@ -1,8 +1,10 @@
 # `sdk.services` — ServicesService
 
-Container-scoped service (workload) configs plus two sub-namespaces:
-`sdk.services.identities` (cloud identities) and `sdk.services.registry`
-(image build / registry / scan / deploy — the legacy `/api/services/**` surface).
+Container-scoped service (workload) configs plus three sub-namespaces:
+`sdk.services.identities` (cloud identities), `sdk.services.registry`
+(image build / registry / scan / deploy — the legacy `/api/services/**` surface),
+and `sdk.services.runs` (ephemeral run-to-completion invocations — see
+`docs/service-runs.md`).
 
 All container-scoped methods take `{ container, name, ... }`. `branch` is
 optional and defaults to `main` on the server when omitted.

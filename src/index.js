@@ -44,7 +44,7 @@
  *   sdk.auth            — login, logout, session, user setup, password reset, directory
  *   sdk.containers      — workspaces (config, list, create, delete)
  *   sdk.clusters        — clusters + .nodegroups .security .upgrade .storage .certs .overlay .extras
- *   sdk.services        — services + .identities .registry
+ *   sdk.services        — services + .identities .registry .runs
  *   sdk.environments    — environments, DNS, backup profiles
  *   sdk.infrastructure  — helm/EKS add-ons + .backups .rotate
  *   sdk.connections     — external-system connections + categories
