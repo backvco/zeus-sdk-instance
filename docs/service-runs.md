@@ -17,9 +17,10 @@ by the request that created the run** — poll `get()`/`list()`, or use
 
 ---
 
-### `create({ container, name, environment, params, dedupKey })`
+### `create({ container, name, environment, params, dedupKey, requireCluster, preferCluster })`
 Start a run. `POST /api/v2configs/[container]/services/[name]/runs` with body
-`{ environment, params?, dedupKey? }` → 201 `{ runId, status }`.
+`{ environment, params?, dedupKey?, requireCluster?, preferCluster? }` →
+201 `{ runId, status, cluster }`.
 
 - `params` — env-var overrides; every key must be in the service's
   `allowedParamKeys`, else 400.
@@ -27,13 +28,23 @@ Start a run. `POST /api/v2configs/[container]/services/[name]/runs` with body
   prior run for that (container, service, environment, dedupKey) is still
   `pending`/`running` returns **409** `{ error:'in-flight', run }` instead of
   starting a duplicate.
+- `requireCluster` — hard pin to one cluster (must be in the environment and
+  the service's `allowedClusters` if set). **400** if not allowed, **409** if
+  the cluster record cannot be resolved.
+- `preferCluster` — soft preference: try this cluster first, then the
+  service's `preferredClusters[]`, then remaining env clusters. Ignored when
+  ineligible. When both are set, `requireCluster` wins.
 - **429** when the service's `maxConcurrent` in-flight cap is already hit.
 
+Service-level defaults (on `ephemeralRun`): `allowedClusters[]` (empty = any
+env cluster) and ordered `preferredClusters[]`.
+
 ```js
-const { runId, status } = await sdk.services.runs.create({
+const { runId, status, cluster } = await sdk.services.runs.create({
   container: 'app1', name: 'meeting-recorder', environment: 'prod',
   params: { MEETING_URL: 'https://meet.example.com/abc' },
   dedupKey: 'meeting-abc',
+  preferCluster: 'z-02',
 });
 ```
 

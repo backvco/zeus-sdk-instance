@@ -34,18 +34,24 @@ export class ServiceRunsService {
    * @param {object} [params.params]      - Env-var overrides; keys must be in the service's `allowedParamKeys`.
    * @param {string} [params.dedupKey]    - Idempotency key; a second call with the same key while
    *   the prior run is in-flight returns 409 instead of starting a duplicate.
-   * @returns {Promise<{ runId: string, status: string }>} 201 on success.
+   * @param {string} [params.requireCluster] - Hard pin: run only on this cluster (must be in the
+   *   environment and the service's `allowedClusters` if set). 400/409 if unavailable.
+   * @param {string} [params.preferCluster]  - Soft preference: try this cluster first, then the
+   *   service's `preferredClusters`, then remaining env clusters. Ignored if ineligible.
+   *   When both `requireCluster` and `preferCluster` are set, require wins.
+   * @returns {Promise<{ runId: string, status: string, cluster: string }>} 201 on success.
    * @throws {import('../errors.js').ZeusApiError} 409 `{ error:'in-flight', run }` on a live dedup collision,
    *   429 when the service's `maxConcurrent` in-flight cap is hit, 400 on a disallowed/invalid param.
    * @example
-   * const { runId, status } = await sdk.services.runs.create({
+   * const { runId, status, cluster } = await sdk.services.runs.create({
    *   container: 'app1', name: 'meeting-recorder', environment: 'prod',
    *   params: { MEETING_URL: 'https://meet.example.com/abc' }, dedupKey: 'meeting-abc',
+   *   preferCluster: 'z-02',
    * });
    */
-  create({ container, name, environment, params, dedupKey }) {
+  create({ container, name, environment, params, dedupKey, requireCluster, preferCluster }) {
     return this.sdk._fetch(`/v2configs/${container}/services/${encodeURIComponent(name)}/runs`, 'POST', {
-      body: { environment, params, dedupKey },
+      body: { environment, params, dedupKey, requireCluster, preferCluster },
     });
   }
 
