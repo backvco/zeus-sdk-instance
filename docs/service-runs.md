@@ -17,10 +17,10 @@ by the request that created the run** — poll `get()`/`list()`, or use
 
 ---
 
-### `create({ container, name, environment, params, dedupKey, requireCluster, preferCluster })`
+### `create({ container, name, environment, params, dedupKey, requireCluster, preferCluster, imageTag })`
 Start a run. `POST /api/v2configs/[container]/services/[name]/runs` with body
-`{ environment, params?, dedupKey?, requireCluster?, preferCluster? }` →
-201 `{ runId, status, cluster }`.
+`{ environment, params?, dedupKey?, requireCluster?, preferCluster?, imageTag? }` →
+201 `{ runId, status, cluster, imageTag }`.
 
 - `params` — env-var overrides; every key must be in the service's
   `allowedParamKeys`, else 400.
@@ -34,17 +34,21 @@ Start a run. `POST /api/v2configs/[container]/services/[name]/runs` with body
 - `preferCluster` — soft preference: try this cluster first, then the
   service's `preferredClusters[]`, then remaining env clusters. Ignored when
   ineligible. When both are set, `requireCluster` wins.
+- `imageTag` — optional image tag for this run only. When omitted, Zeus uses
+  the same chain as deploy: env service `imageTag` → env `defaultBranch`
+  (e.g. `dev` for `dev-d00`) → `latest`.
 - **429** when the service's `maxConcurrent` in-flight cap is already hit.
 
 Service-level defaults (on `ephemeralRun`): `allowedClusters[]` (empty = any
 env cluster) and ordered `preferredClusters[]`.
 
 ```js
-const { runId, status, cluster } = await sdk.services.runs.create({
+const { runId, status, cluster, imageTag } = await sdk.services.runs.create({
   container: 'app1', name: 'meeting-recorder', environment: 'prod',
   params: { MEETING_URL: 'https://meet.example.com/abc' },
   dedupKey: 'meeting-abc',
   preferCluster: 'z-02',
+  // imageTag: 'abc1234', // optional pin; omit to use env defaultBranch / service tag
 });
 ```
 

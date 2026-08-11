@@ -39,19 +39,21 @@ export class ServiceRunsService {
    * @param {string} [params.preferCluster]  - Soft preference: try this cluster first, then the
    *   service's `preferredClusters`, then remaining env clusters. Ignored if ineligible.
    *   When both `requireCluster` and `preferCluster` are set, require wins.
-   * @returns {Promise<{ runId: string, status: string, cluster: string }>} 201 on success.
+   * @param {string} [params.imageTag]    - Optional image tag for this run only. When omitted,
+   *   uses env service `imageTag`, then env `defaultBranch` (same chain as deploy), else `latest`.
+   * @returns {Promise<{ runId: string, status: string, cluster: string, imageTag: string|null }>} 201 on success.
    * @throws {import('../errors.js').ZeusApiError} 409 `{ error:'in-flight', run }` on a live dedup collision,
    *   429 when the service's `maxConcurrent` in-flight cap is hit, 400 on a disallowed/invalid param.
    * @example
-   * const { runId, status, cluster } = await sdk.services.runs.create({
+   * const { runId, status, cluster, imageTag } = await sdk.services.runs.create({
    *   container: 'app1', name: 'meeting-recorder', environment: 'prod',
    *   params: { MEETING_URL: 'https://meet.example.com/abc' }, dedupKey: 'meeting-abc',
    *   preferCluster: 'z-02',
    * });
    */
-  create({ container, name, environment, params, dedupKey, requireCluster, preferCluster }) {
+  create({ container, name, environment, params, dedupKey, requireCluster, preferCluster, imageTag }) {
     return this.sdk._fetch(`/v2configs/${container}/services/${encodeURIComponent(name)}/runs`, 'POST', {
-      body: { environment, params, dedupKey, requireCluster, preferCluster },
+      body: { environment, params, dedupKey, requireCluster, preferCluster, imageTag },
     });
   }
 
