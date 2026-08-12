@@ -60,6 +60,29 @@ export class AlertsService {
 	}
 
 	/**
+	 * Acknowledge a `proxmox-host-config-drift` alert for the current drift
+	 * fingerprint so the host doctor will not re-raise that exact gap.
+	 * (Plain `clear` only snoozes until the next doctor tick.)
+	 *
+	 * @param {object} params
+	 * @param {string} params.key - Host agentId (the alert key).
+	 * @param {string} [params.note] - Optional free-text note (max 500 chars).
+	 * @returns {Promise<{ acked: true, fingerprint: string, at: string }>}
+	 * @example
+	 * await sdk.alerts.acknowledgeConfigDrift({ key: 'agent-abc', note: 'planned outage Jun 9–28' });
+	 */
+	acknowledgeConfigDrift({ key, note, reason } = {}) {
+		return this.sdk._fetch('/alerts', 'POST', {
+			body: {
+				action: 'acknowledgeConfigDrift',
+				type: 'proxmox-host-config-drift',
+				key,
+				note: note ?? reason
+			}
+		});
+	}
+
+	/**
 	 * Assign (or unassign, with a null/omitted assigneeId) an alert to a user.
 	 *
 	 * @param {object} params
