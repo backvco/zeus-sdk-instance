@@ -61,6 +61,7 @@
  *   sdk.system          — egress/whoami IP, tooling, pricing, presets, geocode, fs browse
  *   sdk.agent           — bare-metal/proxmox agent enroll/rekey
  *   sdk.replication     — MySQL InnoDB ClusterSet replication board (discover/status/setMetrics)
+ *   sdk.globalEndpoints — external DNS failover overrides per record (weight/drain/pin) + status
  *   sdk.providers.aws   — AWS accounts, regions, VPC adopt, S3, IAM, Route53, setup
  *   sdk.providers.gcp   — GCP accounts/projects, images(SSE), machine types, workload identity
  *   sdk.providers.proxmox — Proxmox accounts, sites, clusters, connect (lots of SSE)
@@ -95,6 +96,7 @@ import { AwsService } from './services/providers/aws.js';
 import { GcpService } from './services/providers/gcp.js';
 import { ProxmoxService } from './services/providers/proxmox.js';
 import { DnsService } from './services/providers/dns.js';
+import { GlobalEndpointsService } from './services/global-endpoints.js';
 
 export { BaseSDK, deriveInstanceFromLocation } from './base.js';
 export { ZeusApiError, ReachabilityAckRequiredError } from './errors.js';
@@ -128,6 +130,7 @@ export class ZeusInstanceSDK extends BaseSDK {
     this.system = new SystemService(this);
     this.agent = new AgentService(this);
     this.replication = new ReplicationService(this);
+    this.globalEndpoints = new GlobalEndpointsService(this);
 
     /** Cloud/infra provider namespaces. */
     this.providers = {
