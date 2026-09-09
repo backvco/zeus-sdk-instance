@@ -29,6 +29,37 @@ export class ServicesService {
   }
 
   /**
+   * Stream build/deploy staleness for a container's services. STREAMING.
+   * Route: GET /api/v2configs/[container]/stale-builds  (text/event-stream)
+   *
+   * Frames are progress events `{ type: 'step'|'info'|'warn'|'done', message?, item? }`;
+   * the `done` frame carries `{ items, total, skippedEnvs, fromCache, computedAt }`.
+   * Item status: `needs-build` | `built` (ref/build-only mode) |
+   * `needs-deploy` | `clean` | `not-running` | `unknown`.
+   *
+   * @param {object} params
+   * @param {string} params.container       - Workspace container.
+   * @param {string} [params.branch='main'] - Config-store snapshot branch.
+   * @param {string} [params.ref]           - Git branch to check every service against
+   *                                          (build-only, no cluster scan). Omit to use
+   *                                          each env's `defaultBranch` and include deploy status.
+   * @param {boolean} [params.refresh]      - Bypass the 10-minute server cache.
+   * @param {boolean} [params.all]          - Include `clean` items in the `done` frame.
+   * @param {AbortSignal} [params.signal]
+   * @returns {ReturnType<import('../base.js').BaseSDK['_stream']>}
+   * @example
+   * for await (const ev of sdk.services.staleBuilds({ container: 'app1', ref: 'dev' })) {
+   *   if (ev.data?.item?.status === 'needs-build') console.log(ev.data.item.service);
+   * }
+   */
+  staleBuilds({ container, branch = 'main', ref, refresh, all, signal }) {
+    return this.sdk._stream(`/v2configs/${encodeURIComponent(container)}/stale-builds`, 'GET', {
+      query: { branch, ref, refresh: refresh ? '1' : undefined, all: all ? '1' : undefined },
+      signal,
+    });
+  }
+
+  /**
    * List all services in a container.
    * Route: GET /api/v2configs/[container]/services
    *
