@@ -58,3 +58,23 @@ for await (const ev of s) {
   expected Zeus target yet. Retry with `force: true` only when you know propagation is just slow.
 - `422 { error, errors: [...] }` from `put` — hostname failed validation (not a valid FQDN, wildcard,
   or it names a zone Zeus already manages — use the service's Ingress/additionalHosts for those).
+
+## Zeus-managed DNS
+
+Pass `manageDns: true` (with `expectTargets: ['<target>']`) to `put()` to have Zeus create/update the
+CNAME itself instead of asking the customer to:
+
+```js
+await sdk.customHostnames.put({
+  container: 'app1', env: 'dev-d00',
+  hostname: 'help.example.com', service: 'customer-portals',
+  manageDns: true, expectTargets: ['portals.example.com'],
+});
+```
+
+This only takes effect when `help.example.com` lies in a DNS zone Zeus manages (registered in
+Settings → DNS) — if it doesn't, `manageDns` is a no-op recorded in `status.dns.managed: false`
+(never an error), and the hostname behaves exactly like a customer-managed CNAME. When it does
+apply, `status.dns` carries `{ managed: true, zoneId, provider, target, appliedAt }`, and Zeus
+deletes the record automatically when the hostname is deleted. A drifted/missing record is
+self-healed on the daemon's 6h CNAME re-verify pass.

@@ -80,17 +80,23 @@ export class CustomHostnamesService {
    * @param {string} params.service   - Service this hostname routes to (required).
    * @param {string[]} [params.clusters] - Target clusters; default = every cluster the service is deployed on.
    * @param {string} [params.issuingCluster] - Cluster that owns the Certificate; default = first weighted target.
-   * @param {string[]} [params.expectTargets] - Hostnames the CNAME is allowed to resolve to; default = the service's published external hosts.
+   * @param {string[]} [params.expectTargets] - Hostnames the CNAME is allowed to resolve to. Defaults to `[]` (no expected-target narrowing) — callers should pass this explicitly (e.g. the service's published external hosts) when they want the CNAME check to be strict. Required (needs at least one entry) when `manageDns` is `true` — it's the CNAME target Zeus writes.
+   * @param {boolean} [params.manageDns=false] - When `true` and the hostname lies in a DNS zone Zeus manages, Zeus creates/updates the CNAME (`hostname` -> `expectTargets[0]`) itself instead of asking the customer to. A no-op (recorded in `status.dns`, never an error) when the zone isn't Zeus-managed.
    * @param {boolean} [params.force=false] - Skip the CNAME check (e.g. propagation still pending).
    * @param {string} [params.branch='main'] - Config branch.
    * @returns {Promise<{ hostname: object, reconcile: object }>} On a CNAME mismatch (and `force` not set),
-   *   rejects with a {@link ZeusApiError} whose `.status` is 422 and `.body` is `{ error: 'cname-mismatch', verify }`.
+   *   rejects with a {@link ZeusApiError} whose `.status` is 422 and `.body` is `{ error: 'cname-mismatch', verify }`
+   *   — unless `manageDns` just applied the record, in which case a mismatch is treated as pending propagation,
+   *   not an error. On a collision with a name Zeus already serves (exact or wildcard-covered Ingress host on a
+   *   target cluster), rejects with `.status` 422 and `.body` `{ error: 'hostname-in-use', collisions: [{ cluster,
+   *   name, namespace, host }] }` — being under a Zeus-managed zone is otherwise fine; only an actual
+   *   serving collision is blocked.
    * @example
    * await sdk.customHostnames.put({ container: 'app1', env: 'dev-d00', hostname: 'help.example.com', service: 'customer-portals' });
    */
-  put({ container, env, hostname, service, clusters, issuingCluster, expectTargets, force, branch } = {}) {
+  put({ container, env, hostname, service, clusters, issuingCluster, expectTargets, manageDns, force, branch } = {}) {
     return this.sdk._fetch(this._one(container, env, hostname), 'PUT', {
-      body: { service, clusters, issuingCluster, expectTargets, force, branch },
+      body: { service, clusters, issuingCluster, expectTargets, manageDns, force, branch },
     });
   }
 
