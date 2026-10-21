@@ -8,7 +8,7 @@ shell — there is no public PVE endpoint.
 
 | Sub-namespace | Class | Covers |
 |---|---|---|
-| `.accounts` | `ProxmoxAccountsService` | PVE accounts + per-account: templates, storage, host classes/networks, network model, node detail, HA, firewall, edge VMs, UniFi, orphans, token rotation |
+| `.accounts` | `ProxmoxAccountsService` | PVE accounts + per-account: templates, storage, host classes/networks, network model, node detail, HA, firewall, edge VMs, UniFi, WAN IP pool, orphans, token rotation |
 | `.sites` | `ProxmoxSitesService` | bare-metal sites, enrolled agent hosts, k3s clusters built on them |
 | `.clusters` | `ProxmoxClustersService` | k3s cluster lifecycle + per-cluster networking (ingress/IP-pool/DNS/switch-ports/WAN/zones), node discovery, run-cancel |
 | `.connect` | `ProxmoxConnectService` | connector enrollment, PVE-token mint, fact discovery, HA rollout |
@@ -108,6 +108,24 @@ UniFi actions: `test`, `discover`, `discover-sites`, `drift`, `switches`,
 ```js
 const { networks } = await sdk.providers.proxmox.accounts.unifi({ id: 'acc1', action: 'discover' });
 await sdk.providers.proxmox.accounts.unifi({ id: 'acc1', action: 'realize', network: 'cluster-net', secure: true });
+```
+
+### WAN IP pool
+Registry only — does not contact the UniFi controller, and allocate does not claim the address onto a running pod.
+
+| Method | Route | Returns |
+|---|---|---|
+| `wanIps({ id })` | `GET .../wan-ips` | `{ capacity: { free, allocated, excluded, totalAliases }, free: [{ wanId, ip, manual }], allocations, pools }` |
+| `allocateWanIps({ id, container, cluster, envName, serviceName, count?, ips?, branch? })` | `POST .../wan-ips` | `{ allocations, capacity }` |
+
+`count` is how many free addresses to take (ignored by the route when `ips` is set). `ips` is a list of specific free addresses. `branch` defaults to `main` on the server when omitted.
+
+```js
+const { capacity, free } = await sdk.providers.proxmox.accounts.wanIps({ id: 'acct-1' });
+await sdk.providers.proxmox.accounts.allocateWanIps({
+  id: 'acct-1', container: 'app1', cluster: 'z-02',
+  envName: 'dev-d00', serviceName: 'sip', count: 1,
+});
 ```
 
 ---

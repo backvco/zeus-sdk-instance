@@ -14,7 +14,8 @@ import { ProxmoxConnectService } from './proxmox/connect.js';
  * PVE API + a shell over a tunnel — there is no public PVE endpoint. The model:
  *
  *   - **account**  — one PVE cluster (credentials, connector agents, edge VMs,
- *     storage, networks, UniFi link, HA config, firewall). `sdk.providers.proxmox.accounts`
+ *     storage, networks, UniFi link, WAN IP pool, HA config, firewall).
+ *     `sdk.providers.proxmox.accounts`
  *   - **site**     — a bare-metal "site" = a set of enrolled agent hosts that k3s
  *     clusters are built on. `sdk.providers.proxmox.sites`
  *   - **cluster**  — a k3s cluster running on a site/account. Lifecycle + per-cluster
