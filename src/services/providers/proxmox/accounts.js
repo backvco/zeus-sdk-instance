@@ -9,8 +9,9 @@
  * building (SSE), storage discovery/management + pool init (SSE), host classes,
  * host networks (plan/apply/teardown SSE), the cluster network model, node
  * detail, HA config, datacenter firewall, edge VMs (provision/destroy SSE),
- * the UniFi controller integration (action-dispatched, 60+ actions), orphan VM
- * cleanup, API-token rotation, and template management (copy/relocate/delete).
+ * the UniFi controller integration (action-dispatched, 60+ actions), the WAN
+ * IP alias pool (list/allocate, registry only), orphan VM cleanup, API-token
+ * rotation, and template management (copy/relocate/delete).
  */
 export class ProxmoxAccountsService {
   constructor(sdk) { this.sdk = sdk; }
@@ -563,5 +564,46 @@ export class ProxmoxAccountsService {
    */
   unifiStream({ id, ...body }) {
     return this.sdk._stream(`${this._base(id)}/unifi`, 'POST', { body });
+  }
+
+  /**
+   * Free WAN alias addresses on this account, plus per-service pool usage.
+   * Registry only — does not contact the UniFi controller.
+   *
+   * @param {object} params
+   * @param {string} params.id - Proxmox account id.
+   * @returns {Promise<{ capacity: { free: number, allocated: number, excluded: number, totalAliases: number },
+   *   free: Array<{ wanId: string, ip: string, manual: boolean }>,
+   *   allocations: Array<object>, pools: Array<object> }>}
+   * @example
+   * const { capacity, free } = await sdk.providers.proxmox.accounts.wanIps({ id: 'acct-1' });
+   */
+  wanIps({ id }) {
+    return this.sdk._fetch(`${this._base(id)}/wan-ips`, 'GET');
+  }
+
+  /**
+   * Allocate free WAN addresses into a service's static-IP pool. Registry
+   * only — does not contact the UniFi controller or claim the address onto a pod.
+   *
+   * @param {object} params
+   * @param {string} params.id - Proxmox account id.
+   * @param {string} params.container
+   * @param {string} params.cluster
+   * @param {string} params.envName
+   * @param {string} params.serviceName
+   * @param {number} [params.count] - How many free addresses to take. Ignored when `ips` is set.
+   * @param {string[]} [params.ips] - Specific free addresses to allocate.
+   * @param {string} [params.branch]
+   * @returns {Promise<{ allocations: Array<object>, capacity: object }>}
+   * @example
+   * await sdk.providers.proxmox.accounts.allocateWanIps({
+   *   id: 'acct-1', container: 'app1', cluster: 'z-02',
+   *   envName: 'dev-d00', serviceName: 'sip', count: 1 });
+   */
+  allocateWanIps({ id, container, cluster, envName, serviceName, count, ips, branch }) {
+    return this.sdk._fetch(`${this._base(id)}/wan-ips`, 'POST', {
+      body: { container, cluster, envName, serviceName, count, ips, branch },
+    });
   }
 }
