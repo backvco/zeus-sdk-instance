@@ -1,4 +1,7 @@
 // @ts-nocheck
+import { storageActionWithActivateStream } from './storage-action-stream.js';
+import { buildHostNetworkBody } from './host-network-request.js';
+
 /**
  * ProxmoxAccountsService — Proxmox VE accounts and everything scoped to one.
  *
@@ -233,19 +236,115 @@ export class ProxmoxAccountsService {
    * `migrate-vm-disks`, `build-file-server`, `build-storage-server`,
    * `list-drives-enriched`, `wipe-drive`, `storcli-check`, etc.
    *
+   * `activate-block-storage` without `dryRun` is an SSE apply. This method
+   * reads that stream and resolves with the terminal `done` payload
+   * (`ok`, `active`, `total`, `unreachable`, `targetNoop`, `staleAcls`,
+   * `aclAdds`, `aclRemoves`, `applied`). Pass `onProgress(ev)` for `info` /
+   * `step` / `warn` / `success` frames. `onProgress` and `signal` are not
+   * sent to the server. An `error` frame rejects. HTTP 400 (confirm phrase)
+   * and 409 (already running) reject with `ZeusStreamError` whose message is
+   * the route's `error` (`err.name === 'ZeusStreamError'`, `err.status` or
+   * `err.statusCode`). `dryRun: true` (or `'true'`) stays a JSON POST and
+   * returns the plan. A dry-run whose agent cannot probe is HTTP 422
+   * (`agentUpdateRequired`) on that JSON call. Preview and apply both go
+   * through the same target planner, so the plan cannot drift from the apply.
+   * The MCP tool `activate_block_storage` calls this dry-run when `dryRun`
+   * is true and does not open the apply stream. A live apply still streams
+   * `activateBlockStorage({ id, storage })`.
+   * See docs/providers-proxmox.md for prune confirm and safety refusals.
+   *
    * @param {object} params - `{ id, action, ...actionParams }`, or `{ id, body }`
    *   when the action body has a field named `id` (e.g. a recommendation id) that
    *   would collide with the account `id` — pass it as the explicit `body`.
    * @param {string} params.id - Account id.
    * @param {string} [params.action]
    * @param {object} [params.body] - Explicit verbatim request body (overrides the rest).
+   * @param {(ev: object) => void} [params.onProgress] - Apply-stream frames other than `done` / `error`.
+   * @param {AbortSignal} [params.signal] - Aborts the apply stream.
    * @returns {Promise<object>} The action result (shape varies by action).
    * @example
    * await sdk.providers.proxmox.accounts.storageAction({ id:'acc1', action:'set-default', purpose:'disk', storage:'local-zfs' });
    * await sdk.providers.proxmox.accounts.storageAction({ id:'acc1', body:{ action:'dismiss-recommendation', id:7 } });
+   * const plan = await sdk.providers.proxmox.accounts.storageAction({
+   *   id:'acc1', action:'activate-block-storage', storage:'block-vms', dryRun:true, pruneStaleAcls:true
+   * });
+   * const done = await sdk.providers.proxmox.accounts.storageAction({
+   *   id:'acc1', action:'activate-block-storage', storage:'block-vms',
+   *   pruneStaleAcls:true, confirm:'prune stale acls', planHash: plan.planHash,
+   *   onProgress: (ev) => console.log(ev.type, ev.message)
+   * });
    */
-  storageAction({ id, body, ...rest }) {
-    return this.sdk._fetch(`${this._base(id)}/storage`, 'POST', { body: body ?? rest });
+  storageAction(params) {
+    return storageActionWithActivateStream(this, params);
+  }
+
+  /**
+   * Activate an LVM-over-iSCSI storage on every node. STREAMING (SSE).
+   * This method is the apply. Dry-run is `storageAction({ action:
+   * 'activate-block-storage', dryRun: true })`, which uses the same planner
+   * and does not log nodes in. The action re-asserts the target and logs
+   * nodes in; it is not an ACL-add-only update.
+   *
+   * **`POST /api/providers/proxmox/accounts/:id/storage`** action
+   * `activate-block-storage`. Requires `instance:providers:manage`.
+   *
+   * @param {object} params
+   * @param {string} params.id
+   * @param {string} params.storage - LVM-over-iSCSI storage id.
+   * @returns {ReturnType<import('../../../stream.js').openStream>} SSE stream. Terminal `done` payload includes `{ ok, active, total, unreachable }`.
+   * @example
+   * const s = sdk.providers.proxmox.accounts.activateBlockStorage({ id: 'acc1', storage: 'block-vms' });
+   */
+  activateBlockStorage({ id, storage }) {
+    return this.sdk._stream(`${this._base(id)}/storage`, 'POST', {
+      body: { action: 'activate-block-storage', storage },
+    });
+  }
+
+  /**
+   * Attach a spare disk as an md RAID OS mirror and partition it. STREAMING
+   * (SSE). No dry-run.
+   *
+   * **`POST /api/providers/proxmox/accounts/:id/storage`** action
+   * `setup-os-mirror-and-partition`. Requires `instance:providers:manage`.
+   *
+   * @param {object} params
+   * @param {string} params.id
+   * @param {string} params.node
+   * @param {string} params.osDisk - Existing OS disk (`/dev/...`).
+   * @param {string} params.spareDisk - Spare disk to attach (`/dev/...`).
+   * @param {string} [params.poolStrategy] - `drop-free` | `drop-recreate` | `move-all`.
+   * @returns {ReturnType<import('../../../stream.js').openStream>}
+   * @example
+   * const s = sdk.providers.proxmox.accounts.setupOsMirror({ id:'acc1', node:'pve1', osDisk:'/dev/sda', spareDisk:'/dev/sdb' });
+   */
+  setupOsMirror({ id, node, osDisk, spareDisk, poolStrategy }) {
+    return this.sdk._stream(`${this._base(id)}/storage`, 'POST', {
+      body: { action: 'setup-os-mirror-and-partition', node, osDisk, spareDisk, poolStrategy },
+    });
+  }
+
+  /**
+   * Attach a spare disk to a ZFS root pool. STREAMING (SSE). No dry-run.
+   *
+   * **`POST /api/providers/proxmox/accounts/:id/storage`** action
+   * `setup-zfs-os-mirror`. Requires `instance:providers:manage`.
+   *
+   * @param {object} params
+   * @param {string} params.id
+   * @param {string} params.node
+   * @param {string} params.osDisk
+   * @param {string} params.spareDisk
+   * @param {string} params.rootPool
+   * @param {string[]} [params.reclaimPools]
+   * @returns {ReturnType<import('../../../stream.js').openStream>}
+   * @example
+   * const s = sdk.providers.proxmox.accounts.setupZfsOsMirror({ id:'acc1', node:'pve1', osDisk:'/dev/sda', spareDisk:'/dev/sdb', rootPool:'rpool' });
+   */
+  setupZfsOsMirror({ id, node, osDisk, spareDisk, rootPool, reclaimPools }) {
+    return this.sdk._stream(`${this._base(id)}/storage`, 'POST', {
+      body: { action: 'setup-zfs-os-mirror', node, osDisk, spareDisk, rootPool, reclaimPools },
+    });
   }
 
   /**
@@ -316,15 +415,19 @@ export class ProxmoxAccountsService {
   /**
    * Save a host network or get its plan (action-dispatched: `save`, `plan`,
    * `delete`). For `apply`/`teardown` (SSE) use {@link hostNetworksStream}.
+   * `nodes`, when set, must be an array of non-empty hostnames. An unknown
+   * option throws — it is not ignored, because ignoring it would plan every member.
    *
    * @param {object} params - `{ id, action, ...params }`.
    * @param {string} params.id
-   * @param {string} params.action - 'save' | 'plan' | 'delete'.
-   * @returns {Promise<object>} e.g. `{ ok, hostNetworks, warnings }` (save) or `{ ok, plan, manualSwitchSteps, warnings }` (plan).
+   * @param {string} params.action - 'save' | 'plan' | 'confirm' | 'delete' | 'remap' | 'remap-candidates'. `plan` accepts `scope` (`host` | `switch` | `both`), `rollbackSeconds`, and `nodes`, and returns `planId`. `confirm` disarms the apply rollback timer.
+   * @param {string[]} [params.nodes] - Hostnames to include. Omit for every member. An empty or invalid list throws.
+   * @returns {Promise<object>} e.g. `{ ok, hostNetworks, warnings }` (save) or `{ ok, planId, plan, manualSwitchSteps, warnings }` (plan).
    * @example
-   * await sdk.providers.proxmox.accounts.hostNetworksAction({ id:'acc1', action:'plan', name:'storage-net' });
+   * await sdk.providers.proxmox.accounts.hostNetworksAction({ id:'acc1', action:'plan', name:'storage-net', nodes:['indy-prox-009'] });
    */
-  hostNetworksAction({ id, ...body }) {
+  hostNetworksAction({ id, ...options } = {}) {
+    const body = buildHostNetworkBody(options);
     return this.sdk._fetch(`${this._base(id)}/host-networks`, 'POST', { body });
   }
 
@@ -335,12 +438,22 @@ export class ProxmoxAccountsService {
    * @param {string} params.id
    * @param {string} params.action - 'apply' | 'teardown'.
    * @param {string} params.name
-   * @returns {ReturnType<import('../../../stream.js').openStream>} SSE stream handle (step/warn/error frames).
+   * @param {string} [params.planId] - required for `apply` (the id returned by `plan`). Forwarded on the POST body.
+   * @param {string} [params.scope] - must match the previewed plan when set.
+   * @param {number} [params.rollbackSeconds] - non-zero fail-safe window stored with the plan.
+   * @param {string[]} [params.nodes] - Hostnames to include. Omit for every member of the previewed plan. An empty or invalid list throws and does not apply to every host.
+   * @param {AbortSignal} [params.signal] - Aborts the stream. Not sent in the body.
+   * @returns {ReturnType<import('../../../stream.js').openStream>} SSE stream handle (step/warn/error frames). Assign `onMessage` / `onDone` on the handle.
    * @example
-   * const s = sdk.providers.proxmox.accounts.hostNetworksStream({ id:'acc1', action:'apply', name:'storage-net' });
+   * const s = sdk.providers.proxmox.accounts.hostNetworksStream({
+   *   id:'acc1', action:'apply', name:'vm-data', planId, scope:'host', nodes:['indy-prox-009']
+   * });
+   * s.onMessage = (ev) => console.log(ev.data);
+   * s.onDone = () => console.log('finished');
    */
-  hostNetworksStream({ id, action, name }) {
-    return this.sdk._stream(`${this._base(id)}/host-networks`, 'POST', { body: { action, name } });
+  hostNetworksStream({ id, signal, ...options } = {}) {
+    const body = buildHostNetworkBody(options);
+    return this.sdk._stream(`${this._base(id)}/host-networks`, 'POST', { body, signal });
   }
 
   /**

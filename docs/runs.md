@@ -12,7 +12,7 @@ throw on HTTP 4xx/5xx; `stream()` returns an SSE handle.
 
 | Method | Route | Notes |
 |--------|-------|-------|
-| `history({ domain, scope, limit? })` | GET `/runs/history` | → `{ domain, scope, runs:[{ runId, kind, startedAt, finishedAt, finalType, finalMessage, sizeBytes }] }`. 400 if domain/scope missing or domain unknown |
+| `history({ domain, scope, limit?, prefix? })` | GET `/runs/history` | → `{ domain, scope, runs:[{ runId, kind, scope, startedAt, finishedAt, finalType, finalMessage, sizeBytes }] }`. `prefix: true` also lists runs one scope segment below (mysql-recovery cluster → each release). 400 if domain/scope missing or domain unknown |
 | `inFlight({ domain?, scope?, kind?, runKey? })` | GET `/runs/in-flight` | → `{ inFlight: boolean }`. Probe "is a run executing now?". `kind` defaults `'apply'`. Pass `runKey` instead of domain/scope to bypass key derivation |
 | `stream({ domain, scope?, runId?, kind?, live?, runKey?, signal? })` | GET `/runs/stream` **[SSE]** | Live tail or disk replay. See below |
 

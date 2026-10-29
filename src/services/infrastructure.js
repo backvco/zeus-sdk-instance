@@ -308,7 +308,7 @@ export class InfrastructureService {
    * @param {string} params.addonName   - Zeus addon id (must be a helm-chart addon).
    * @param {string} [params.clusterName] - Cluster name (resolves kube context).
    * @param {string} [params.kubeContext] - Explicit kube context override.
-   * @param {object} [params.values]    - Chart values (install/upgrade/render/save).
+   * @param {object} [params.values]    - Chart values (install/upgrade/render/save). Secret fields come back as `<redacted:…>` placeholders unless the caller has `instance:secrets:view`; sending those placeholders back on save/install/upgrade restores the stored bytes.
    * @param {string} [params.version]   - Chart version.
    * @param {number} [params.revision]  - Target revision (rollback).
    * @param {string} [params.targetNamespace]   - Namespace override.

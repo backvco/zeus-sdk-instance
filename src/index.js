@@ -31,7 +31,10 @@
  *   Node    — `token` (service token → Bearer) or `devKey` (→ x-dev-key header).
  *
  * ─── Errors ───────────────────────────────────────────────────────────────────
- *   Methods throw {@link ZeusApiError} on non-2xx (`.status`, `.body`, `.endpoint`).
+ *   Methods throw {@link ZeusApiError} on non-2xx (`.status`, `.body`, `.endpoint`, `.requestId`).
+ *   Idempotent reads retry HTTP 502/503 and connection resets (3 attempts,
+ *   exponential backoff with jitter). A 504 is retried at most once.
+ *   Mutations are not retried.
  *   A 412 reachability gate throws {@link ReachabilityAckRequiredError}.
  *
  * ─── Streaming ────────────────────────────────────────────────────────────────
@@ -60,8 +63,8 @@
  *   sdk.help            — assistant chat (SSE) + sessions + settings
  *   sdk.system          — egress/whoami IP, tooling, pricing, presets, geocode, fs browse
  *   sdk.agent           — bare-metal/proxmox agent enroll/rekey
- *   sdk.replication     — MySQL InnoDB ClusterSet replication board (discover/status/setMetrics)
- *   sdk.globalEndpoints — external DNS failover overrides per record (weight/drain/pin) + status
+ *   sdk.replication     — replication board (discover/status/setMetrics/instanceRoster), planClickhouseRebuild, MySQL promote preview/execute, ClusterSet switchover preview/execute
+ *   sdk.globalEndpoints — external DNS failover overrides per record (weight/drain/pin) + status + HTTP prober settings
  *   sdk.customHostnames — bring-your-own-domain hostnames bound to a service (BYO CNAME + TLS)
  *   sdk.providers.aws   — AWS accounts, regions, VPC adopt, S3, IAM, Route53, setup
  *   sdk.providers.gcp   — GCP accounts/projects, images(SSE), machine types, workload identity

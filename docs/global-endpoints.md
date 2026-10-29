@@ -10,6 +10,9 @@ route's literal JSON and throws on HTTP 4xx/5xx.
 |--------|-------|-------|
 | `override({ name, type, cluster?, value? })` | POST `/global-endpoints/{name}/external/override` | `type` ∈ `drain`, `clear-drain`, `pin`, `clear-pin`, `weight`, `clear-weight`, `restore`, `clear-restore`, `failback`, `clear-failback`. → `{ overrides, applied }` (reconcile runs immediately) |
 | `externalStatus({ name })` | GET `/global-endpoints/{name}/external/status` | Per-cluster weights, health verdicts, active overrides |
+| `httpProber()` | GET `/global-endpoints/http-prober` | Instance probe regions, interval, and consecutive-failure debounce (`settings` sparse, `effective` resolved) |
+| `setHttpProber(body)` | PUT `/global-endpoints/http-prober` | Set `regions`, `intervalSec` (15..3600), `consecutiveFailures` (1..20). `null` clears a field. Unknown or duplicate regions are rejected |
+| `vantageStatus()` | GET `/global-endpoints/vantage-status` | Per-record prober status, including `probeRegions` and `probeIntervalSec` |
 
 Join gate for an in-cluster agent (stay out of one hostname until ready, e.g. certs synced):
 

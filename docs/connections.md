@@ -32,7 +32,7 @@ const { records } = await sdk.connections.listNatsGateways();
 | `save({ container, provider, data, branch? })` | PUT `/v2configs/[container]/connections/[provider]` | → `{ provider }`. Field values encrypted at rest |
 | `delete({ container, provider, branch? })` | DELETE `/v2configs/[container]/connections/[provider]` | → `{ success: true }`. 409 (throws, `body.linkedServices`) if a service still links to it |
 | `reveal({ container, provider, object, field, branch? })` | POST `/v2configs/[container]/connections/[provider]/reveal` | → `{ value }` (single decrypted field); 404 if object/field missing |
-| `cloneObject({ container, provider, sourceName, newName?, branch? })` | POST `/v2configs/[container]/connections/[provider]/clone-object` | → `{ provider, clone: { fields } }`. `newName` auto-picked when omitted |
+| `cloneObject({ container, provider, sourceName, newName?, branch? })` | POST `/v2configs/[container]/connections/[provider]/clone-object` | → `{ provider, clone: { fields } }`. `newName` auto-picked when omitted. `clone.fields` is plaintext only with `instance:secrets:view`; otherwise each field is `<redacted:…>` |
 | `linkedServices({ container, provider, branch? })` | GET `/v2configs/[container]/connections/[provider]/linked-services` | → `{ services }` |
 | `linkService({ container, provider, serviceName, branch? })` | POST `.../linked-services` `action:'link'` | → link result |
 | `unlinkService({ container, provider, serviceName, branch? })` | POST `.../linked-services` `action:'unlink'` | → `{ removed }` |

@@ -109,12 +109,18 @@ try {
   await sdk.clusters.get({ container: 'app1', name: 'nope' });
 } catch (err) {
   if (err instanceof ZeusApiError) {
-    err.status;    // 404
-    err.body;      // { error: 'Cluster not found' }
-    err.endpoint;  // '/v2configs/app1/clusters/nope'
+    err.status;     // 404
+    err.body;       // { error: 'Cluster not found' }
+    err.endpoint;   // '/v2configs/app1/clusters/nope'
+    err.requestId;  // x-request-id, when one was sent or returned
   }
 }
 ```
+
+Idempotent reads retry HTTP 502/503 and connection resets (3 attempts,
+exponential backoff with jitter). A 504 is retried at most once. Mutations
+are not retried. A gateway failure's `message` includes the status, endpoint,
+and request id.
 
 A few infrastructure operations gate on cluster reachability and respond `412`;
 those throw `ReachabilityAckRequiredError` (with `.payload`) so you can prompt
