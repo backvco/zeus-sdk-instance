@@ -38,8 +38,8 @@ export class ClusterNodegroupsService {
    * @example
    * const { plan } = await sdk.clusters.nodegroups.plan({ container:'app1', name:'z-01', ngName:'workers' });
    */
-  plan({ container, name, ngName, mode, branch }) {
-    return this.sdk._fetch(`${this._base(container, name)}/nodegroups/plan`, 'POST', { body: { ngName, mode, branch } });
+  plan({ container, name, ngName, mode, branch, storageHealthOverride }) {
+    return this.sdk._fetch(`${this._base(container, name)}/nodegroups/plan`, 'POST', { body: { ngName, mode, branch, storageHealthOverride: storageHealthOverride === true } });
   }
 
   /**
@@ -61,8 +61,8 @@ export class ClusterNodegroupsService {
    * const s = sdk.clusters.nodegroups.apply({ container:'app1', name:'z-01', ngName:'workers' });
    * for await (const ev of s) console.log(ev);
    */
-  apply({ container, name, ngName, planHash, mode, expectedMoves, branch }) {
-    return this.sdk._stream(`${this._base(container, name)}/nodegroups/apply`, 'POST', { body: { ngName, planHash, mode, expectedMoves, branch } });
+  apply({ container, name, ngName, planHash, mode, expectedMoves, branch, storageHealthOverride }) {
+    return this.sdk._stream(`${this._base(container, name)}/nodegroups/apply`, 'POST', { body: { ngName, planHash, mode, expectedMoves, branch, storageHealthOverride: storageHealthOverride === true } });
   }
 
   /**

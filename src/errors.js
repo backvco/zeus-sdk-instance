@@ -21,9 +21,10 @@
  *   await sdk.clusters.get({ container: 'app1', name: 'does-not-exist' });
  * } catch (err) {
  *   if (err instanceof ZeusApiError) {
- *     err.status;   // 404
- *     err.body;     // { error: 'Cluster not found' }
- *     err.endpoint; // '/v2configs/app1/clusters/does-not-exist'
+ *     err.status;    // 404
+ *     err.body;      // { error: 'Cluster not found' }
+ *     err.endpoint;  // '/v2configs/app1/clusters/does-not-exist'
+ *     err.requestId; // x-request-id, when the response or the client sent one
  *   }
  * }
  */
@@ -31,19 +32,45 @@ export class ZeusApiError extends Error {
   /**
    * @param {string} message  - Human-readable message (body.error || body.message || `HTTP <status>`).
    * @param {object} [opts]
-   * @param {number} [opts.status]   - HTTP status code.
-   * @param {*}      [opts.body]     - Parsed response body (object or string).
-   * @param {string} [opts.endpoint] - Endpoint path (relative to baseURL) that failed.
-   * @param {string} [opts.method]   - HTTP method used.
+   * @param {number} [opts.status]    - HTTP status code.
+   * @param {*}      [opts.body]      - Parsed response body (object or string).
+   * @param {string} [opts.endpoint]  - Endpoint path (relative to baseURL) that failed.
+   * @param {string} [opts.method]    - HTTP method used.
+   * @param {string} [opts.requestId] - `x-request-id` from the response, else the id this call sent.
+   * @param {Error}  [opts.cause]     - Underlying transport error, when the failure never got a response.
    */
-  constructor(message, { status, body, endpoint, method } = {}) {
-    super(message);
+  constructor(message, { status, body, endpoint, method, requestId, cause } = {}) {
+    super(message, cause ? { cause } : undefined);
     this.name = 'ZeusApiError';
     this.status = status;
     this.body = body;
     this.endpoint = endpoint;
     this.method = method;
+    this.requestId = requestId || null;
   }
+}
+
+/**
+ * Build the message callers log. Gateway failures and empty bodies include
+ * status, method, endpoint, and request id. A 4xx that already has a server
+ * message keeps that text; `requestId` is still set on the error object.
+ *
+ * @param {string} serverMessage
+ * @param {{ status?: number, endpoint?: string, method?: string, requestId?: string, network?: boolean }} [ctx]
+ * @returns {string}
+ */
+export function formatApiErrorMessage(serverMessage, { status, endpoint, method, requestId, network = false } = {}) {
+  const where = [method, endpoint].filter(Boolean).join(' ');
+  const parts = [];
+  if (network) parts.push('network error');
+  else if (status) parts.push(`HTTP ${status}`);
+  if (where) parts.push(where);
+  if (requestId) parts.push(`request ${requestId}`);
+  const suffix = parts.join(' ');
+  const base = typeof serverMessage === 'string' ? serverMessage.trim() : '';
+  if (!base || (status && base === `HTTP ${status}`)) return suffix || base || 'request failed';
+  if (requestId && base.includes(requestId)) return base;
+  return suffix ? `${base} (${suffix})` : base;
 }
 
 /**

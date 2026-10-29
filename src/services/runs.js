@@ -59,8 +59,8 @@ export class RunsService {
 	 * const { runs } = await sdk.runs.history({ domain: 'cluster', scope: ['z-02'] });
 	 * // → { domain:'cluster', scope:['z-02'], runs:[{ runId:'2026-...', kind:'provision', ... }] }
 	 */
-	history({ domain, scope, limit }) {
-		return this.sdk._fetch('/runs/history', 'GET', { query: { domain, scope, limit } });
+	history({ domain, scope, limit, prefix }) {
+		return this.sdk._fetch('/runs/history', 'GET', { query: { domain, scope, limit, prefix: prefix ? '1' : undefined } });
 	}
 
 	/**
@@ -124,9 +124,9 @@ export class RunsService {
 	 *   if (ev.type === 'done') break;
 	 * }
 	 */
-	stream({ domain, scope, runId, kind, live, runKey, signal }) {
+	stream({ domain, scope, runId, kind, live, runKey, prefix, signal }) {
 		return this.sdk._stream('/runs/stream', 'GET', {
-			query: { domain, scope, runId, kind, live, runKey },
+			query: { domain, scope, runId, kind, live, runKey, prefix: prefix ? '1' : undefined },
 			signal
 		});
 	}

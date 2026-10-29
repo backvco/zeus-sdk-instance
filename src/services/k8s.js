@@ -335,6 +335,22 @@ export class K8sService {
     });
   }
 
+  /**
+   * Dry-run the Group Replication primary move a cordon or drain would run
+   * first. Does not promote and does not cordon. `ok: false` means the
+   * drain would be refused (no healthy caught-up member on another host).
+   *
+   * @param {object} params
+   * @param {string} params.cluster - Kube context (required).
+   * @param {string} params.node    - Node name (required).
+   * @returns {Promise<{ ok: boolean, error: string|null, writers: object[], moves: object[], blocked: object[] }>}
+   * @example
+   * const plan = await sdk.k8s.previewNodePrimaryMove({ cluster: 'z-01', node: 'ip-10-0-1-5' });
+   */
+  previewNodePrimaryMove({ cluster, node } = {}) {
+    return this.sdk._fetch('/k8s/nodes/primary-move', 'GET', { query: { cluster, node } });
+  }
+
   // ─── Events & live watch ─────────────────────────────────────────────────
 
   /**

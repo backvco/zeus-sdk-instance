@@ -13,8 +13,13 @@ Lifecycle: `create` → `slots` (preview next free, account-aware) →
 ## Plans
 
 ### `list()`
-All plans. **`GET /api/network/plans`**
-- Returns: `{ plans }`
+Plans visible to operators. Unowned test fixtures are omitted.
+**`GET /api/network/plans`**
+- Returns: `{ plans, suspectedFixtures }`
+- `suspectedFixtures` is a read-only finding (known fixture names whose
+  slots are all unallocated and have no cluster reference). The call does
+  not delete them. Which plan owns z-01 / z-02 / z-03 is not encoded in
+  this SDK; see the instance repo `docs/networking/network-plan.md`.
 
 ### `create({ name })`
 New empty plan (lowercase/digits/dashes). **`POST /api/network/plans`**

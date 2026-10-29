@@ -14,8 +14,10 @@ belong to a single resource.
 | `geocode({ query })` | POST `/api/geo/geocode` | Geocode a place query (connectivity geo map) |
 | `browseFilesystem({ path? })` | GET `/api/filesystem/browse` | Host directory listing for path pickers → `{ path, parent, entries }` |
 | `dashboardWorkspaces()` | GET `/api/dashboard/workspaces` | Landing-page container summaries → `{ workspaces }` |
-| `version()` | GET `/api/system/version` | Running vs. latest Zeus version → `{ current, latest, updateAvailable }` |
-| `upgrade()` | POST `/api/system/upgrade` | Start a self-upgrade via the console → `{ started, upToDate? }` |
+| `version()` | GET `/api/system/version` | Running vs. latest Zeus version → `{ current, latest, notes, updateAvailable }` |
+| `upgrade()` | POST `/api/system/upgrade` | Start a self-upgrade via the console UI path → `{ started, upToDate? }` |
+| `previewUpgrade({ target?, overridePreflight? })` | POST `/api/system/upgrade/plan` | Preview a self-upgrade. Does not start one → `{ confirmName, current, target, notes, preflight, planHash? }` |
+| `applyUpgrade({ confirm, planHash, target?, overridePreflight? })` | POST `/api/system/upgrade/apply` | Start a previewed self-upgrade. `confirm` is the instance name; `planHash` is single-use → `{ started, pending? }` |
 | `upgradeStatus()` | GET `/api/system/upgrade/status` | Console-reported upgrade run status → `{ upgradeStatus, upgradeStep, upgradeError, ... }` |
 
 ```js

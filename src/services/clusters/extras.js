@@ -8,6 +8,7 @@
  *   - **harbor** — Harbor registry replication endpoints/policies/proxy-caches + robot accounts.
  *   - **gke** — Google-managed CSI driver enablement + GKE access bindings.
  *   - **firewall-rules** — apply GKE node-pool firewall rules.
+ *   - **workload-ops** — preview/apply a configured role label or readiness backfill.
  *
  * `arch-taint/start` and `gke-csi-drivers` POST STREAM (SSE). `harbor-*` POSTs are
  * action-dispatched (pass `action` + that action's fields; see the route for the
@@ -167,5 +168,32 @@ export class ClusterExtrasService {
    */
   applyFirewallRules({ container, name, branch }) {
     return this.sdk._fetch(`${this._base(container, name)}/firewall-rules`, 'POST', { body: { branch } });
+  }
+
+  // ─── Workload ops ───────────────────────────────────────────────────────────
+
+  /**
+   * Preview a configured role-label reconcile or readiness backfill.
+   * Writes nothing. `action` is `role-label-reconcile` or `readiness-backfill`.
+   * @param {object} params - container, name, action, service, check?, node?.
+   * @returns {Promise<object>} Preview body, including `planHash` when a confirm can proceed.
+   * @example const plan = await sdk.clusters.extras.workloadOpsPlan({ container:'app1', name:'lab', action:'role-label-reconcile', service:'media' });
+   */
+  workloadOpsPlan({ container, name, action, service, check, node }) {
+    return this.sdk._fetch(`${this._base(container, name)}/node-ops/plan`, 'POST', { body: { action, service, check, node } });
+  }
+
+  /**
+   * Apply a previewed role-label reconcile or readiness backfill.
+   * `confirm` must equal the cluster name and `planHash` must be the token from `workloadOpsPlan`.
+   * Omit `dryRun: false` and this stays a preview.
+   * @param {object} params - container, name, action, service, confirm, planHash, dryRun?, check?, node?.
+   * @returns {Promise<object>}
+   * @example await sdk.clusters.extras.workloadOpsApply({ container:'app1', name:'lab', action:'readiness-backfill', service:'media', check:'vfio', confirm:'lab', planHash:plan.planHash, dryRun:false });
+   */
+  workloadOpsApply({ container, name, action, service, check, node, confirm, planHash, dryRun }) {
+    return this.sdk._fetch(`${this._base(container, name)}/node-ops/apply`, 'POST', {
+      body: { action, service, check, node, confirm, planHash, dryRun }
+    });
   }
 }

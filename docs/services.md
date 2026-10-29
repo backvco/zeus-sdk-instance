@@ -71,6 +71,20 @@ Environments that include this service. `GET .../services/[name]/environments` �
 ### `volumeMappings({ container, name, volume, branch })`
 (env,cluster) storage-class mappings for a PVC volume. `GET .../services/[name]/volume-mappings?volume=` → `{ mappings }`.
 
+### `editSettings({ container, cluster, service, settings, environment, scope, workload, containerName, deploy, dryRun, confirm, planHash })`
+Preview or apply a partial service-settings change. `POST /api/v2configs/[container]/clusters/[name]/service-settings/plan` unless `dryRun` is boolean false, which posts to `.../apply`. Apply needs `confirm` equal to the cluster name and `planHash` from the preview.
+`settings.scaling.hpa` is `minReplicas`, `maxReplicas`, and `targetCPU` (integer percent 1–100). `minReplicas` must not exceed `maxReplicas`. `settings.scheduling.topologySpread` is `maxSkew`, `topologyKey`, and `whenUnsatisfiable` (`ScheduleAnyway` soft preference, or `DoNotSchedule`).
+Prepared in 0.2.23. Do not npm publish until Cameron says so.
+```js
+await sdk.services.editSettings({
+  container: 'app1', cluster: 'lab', service: 'api', scope: 'cluster', environment: 'dev',
+  settings: {
+    scaling: { hpa: { minReplicas: 2, maxReplicas: 6, targetCPU: 60 } },
+    scheduling: { topologySpread: { maxSkew: 1, topologyKey: 'topology.kubernetes.io/zone' } }
+  }
+});
+```
+
 ---
 
 ## `sdk.services.identities` — ServiceIdentitiesService

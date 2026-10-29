@@ -161,7 +161,10 @@ export class ConnectionsService {
    * @param {string} [params.newName] - New object name; auto-picked when omitted.
    * @param {string} [params.branch='main'] - Config branch.
    * @returns {Promise<{ provider: object, clone: { fields: object } }>}
-   *   `provider` is the masked record; `clone.fields` carries plaintext for the new object.
+   *   `provider` is the masked record. `clone.fields` is plaintext only when the
+   *   caller has `instance:secrets:view` (or `instance:*` / owner). Otherwise each
+   *   field is a `<redacted:…>` placeholder. `instance:secrets:manage` can clone
+   *   and does not include view.
    * @example
    * const { clone } = await sdk.connections.cloneObject({ container: 'app1', provider: 'main-db', sourceName: 'primary' });
    */

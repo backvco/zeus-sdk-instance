@@ -92,6 +92,14 @@ Optional body fields: `clusterName`, `kubeContext`, `values`, `version`,
 out-of-band resources, default false), `backupProfile`, `restoreProfile`,
 `acknowledgeReachabilityCritical`, `branch`.
 
+`saved-values` returns the stored desired-config (`result`) plus `lastApplied`.
+Secret fields in that payload, and saved secret fields merged into a `values`
+read, are plaintext only with `instance:secrets:view`. Other callers receive
+`<redacted:…>` placeholders. A later `save`, `install`, or `upgrade` that sends
+those placeholders back restores the stored secret instead of overwriting it.
+`liveOnly: true` on `values` is the unmerged live release and is not overlaid
+with the saved record.
+
 **412 acknowledgement:** for a `reachabilityCritical` addon (e.g.
 `netbird-management`), a mutating action without
 `acknowledgeReachabilityCritical: true` returns HTTP 412 `requiresAcknowledgement`

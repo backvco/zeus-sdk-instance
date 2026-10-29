@@ -268,4 +268,60 @@ export class ServicesService {
       query: { volume, branch },
     });
   }
+
+  /**
+   * Preview or apply a partial service-settings change.
+   * Route: POST /api/v2configs/[container]/clusters/[name]/service-settings/plan|apply
+   *
+   * Defaults to a dry-run preview. Apply when `dryRun` is boolean false, with
+   * `confirm` equal to the cluster name and `planHash` from that preview.
+   * `settings.scaling.hpa` accepts `minReplicas`, `maxReplicas`, and `targetCPU`
+   * (an integer percent from 1 to 100). `minReplicas` must not exceed
+   * `maxReplicas`, including against the value already stored.
+   * `settings.scheduling.topologySpread` accepts `maxSkew`, `topologyKey`, and
+   * `whenUnsatisfiable`. Omitted `whenUnsatisfiable` is ScheduleAnyway, a soft
+   * preference. DoNotSchedule is required and uses the same placement ceiling
+   * as separateZones or separateNodes.
+   *
+   * Prepared in 0.2.23. Do not npm publish until Cameron says so.
+   *
+   * @param {object} input
+   * @param {string} input.container
+   * @param {string} input.cluster
+   * @param {string} input.service
+   * @param {object} input.settings
+   * @param {string} [input.environment]
+   * @param {'template'|'cluster'} [input.scope]
+   * @param {string} [input.workload]
+   * @param {string} [input.containerName]
+   * @param {boolean} [input.deploy]
+   * @param {boolean} [input.dryRun]
+   * @param {string} [input.confirm]
+   * @param {string} [input.planHash]
+   * @example
+   * await sdk.services.editSettings({
+   *   container: 'app1', cluster: 'lab', service: 'api', scope: 'cluster', environment: 'dev',
+   *   settings: { scaling: { hpa: { minReplicas: 2, maxReplicas: 6, targetCPU: 60 } },
+   *     scheduling: { topologySpread: { maxSkew: 1, topologyKey: 'topology.kubernetes.io/zone' } } }
+   * });
+   */
+  editSettings(input = {}) {
+    const dryRun = input.dryRun !== false;
+    const kind = dryRun ? 'plan' : 'apply';
+    const body = {
+      service: input.service,
+      environment: input.environment,
+      scope: input.scope,
+      workload: input.workload,
+      containerName: input.containerName,
+      settings: input.settings,
+      deploy: input.deploy === true,
+      ...(dryRun ? {} : { dryRun: false, confirm: input.confirm, planHash: input.planHash })
+    };
+    return this.sdk._fetch(
+      `/v2configs/${encodeURIComponent(input.container)}/clusters/${encodeURIComponent(input.cluster)}/service-settings/${kind}`,
+      'POST',
+      { body: Object.fromEntries(Object.entries(body).filter(([, value]) => value !== undefined)) }
+    );
+  }
 }

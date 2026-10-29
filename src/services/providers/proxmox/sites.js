@@ -66,7 +66,8 @@ export class ProxmoxSitesService {
    * @param {{ enabled: boolean, afterMinutes?: number }} [params.autoRecover] - When set,
    *   patches ONLY the auto-recover policy (ignores alias/displayName/action). Off by
    *   default; when enabled, the health daemon auto-marks a DOWN host failed once it's
-   *   been down longer than `afterMinutes` (default 15).
+   *   been down longer than `afterMinutes` (default 15). Values below 15 are raised
+   *   to 15. A host in maintenance is never auto-recovered.
    * @returns {Promise<{ site: object, defaulted?: boolean, autoRecover?: object }>}
    * @example
    * await sdk.providers.proxmox.sites.update({ siteId: 'site1', displayName: 'Indy DC 2' });
@@ -271,14 +272,63 @@ export class ProxmoxSitesService {
    * @param {string} params.agentId
    * @param {string} params.role - 'unassigned' | 'server' | 'agent'.
    * @param {string} [params.pool]
-   * @returns {Promise<{ host: object }>}
+   * @param {{ ip?: string, username?: string, password?: string|null }} [params.idrac]
+   *   BMC address. `password` is encrypted at rest. Omit `password` to keep the stored one.
+   * @returns {Promise<{ host: object }>} The host. `idrac.password` is never returned; `hasPassword` is.
    * @example
    * await sdk.providers.proxmox.sites.updateHost({ siteId:'site1', agentId:'ag1', role:'server' });
+   * await sdk.providers.proxmox.sites.updateHost({ siteId:'site1', agentId:'ag1', idrac:{ ip:'10.0.0.50', username:'root', password:'secret' } });
    */
-  updateHost({ siteId, agentId, role, pool }) {
+  updateHost({ siteId, agentId, role, pool, idrac }) {
     return this.sdk._fetch(`/providers/proxmox/sites/${this._s(siteId)}/hosts/${this._a(agentId)}`, 'PUT', {
-      body: { role, pool },
+      body: { role, pool, idrac },
     });
+  }
+
+  /**
+   * Reveal the stored iDRAC password. Requires `instance:hosts:manage`.
+   * Read-scoped tokens are refused. The telemetry read is `readHostBmc`.
+   *
+   * @param {object} params
+   * @param {string} params.siteId
+   * @param {string} params.agentId
+   * @returns {Promise<{ password: string }>}
+   * @example
+   * const { password } = await sdk.providers.proxmox.sites.revealIdracPassword({ siteId:'site1', agentId:'ag1' });
+   */
+  revealIdracPassword({ siteId, agentId }) {
+    return this.sdk._fetch(
+      `/providers/proxmox/sites/${this._s(siteId)}/hosts/${this._a(agentId)}`,
+      'GET',
+      { query: { reveal: 'idrac' } },
+    );
+  }
+
+  /**
+   * Read-only Redfish/iDRAC snapshot: boot mode, BootSeq, UefiBootSeq, staged
+   * BIOS settings and jobs, ErrPrompt, PSU redundancy, and SEL entries.
+   * `status` is `ok`, `unknown`, or `not-configured`. Unknown and
+   * not-configured are not a pass. The BMC password is never returned.
+   *
+   * **`GET /api/providers/proxmox/sites/:siteId/hosts/:agentId/redfish`**
+   * Requires `instance:providers:view`.
+   *
+   * @param {object} params
+   * @param {string} params.siteId
+   * @param {string} params.agentId
+   * @param {string} [params.severity] - SEL filter: OK, Warning, or Critical.
+   * @param {string} [params.since] - SEL start, ISO-8601.
+   * @param {string} [params.until] - SEL end, ISO-8601.
+   * @returns {Promise<object>}
+   * @example
+   * const bmc = await sdk.providers.proxmox.sites.readHostBmc({ siteId:'site1', agentId:'ag1', severity:'Warning' });
+   */
+  readHostBmc({ siteId, agentId, severity, since, until }) {
+    return this.sdk._fetch(
+      `/providers/proxmox/sites/${this._s(siteId)}/hosts/${this._a(agentId)}/redfish`,
+      'GET',
+      { query: { severity, since, until } },
+    );
   }
 
   /**
@@ -300,7 +350,11 @@ export class ProxmoxSitesService {
    * pulls it out of VM-placement service (isHostPlaceable) while leaving its
    * health state alone (it still reports 'online' if the tunnel/PVE agree).
    * Use for a host that's up but shouldn't receive new VMs, e.g. a failing
-   * disk awaiting replacement.
+   * disk awaiting replacement. Entering maintenance first moves any Group
+   * Replication primary off this host and waits until that is confirmed.
+   * If no healthy ONLINE member on another host is caught up, the call
+   * fails and the flag is left unchanged. Preview with
+   * {@link previewHostPrimaryMove}.
    *
    * @param {object} params
    * @param {string} params.siteId
@@ -329,6 +383,39 @@ export class ProxmoxSitesService {
    */
   getHostMaintenance({ siteId, agentId }) {
     return this.sdk._fetch(`/providers/proxmox/sites/${this._s(siteId)}/hosts/${this._a(agentId)}/maintenance`, 'GET');
+  }
+
+  /**
+   * Dry-run the Group Replication primary move that entering maintenance
+   * would run first. Does not promote and does not set the maintenance flag.
+   * `ok: false` means maintenance would be refused.
+   *
+   * @param {object} params
+   * @param {string} params.siteId
+   * @param {string} params.agentId
+   * @returns {Promise<{ ok: boolean, error: string|null, writers: object[], moves: object[], blocked: object[] }>}
+   * @example
+   * const plan = await sdk.providers.proxmox.sites.previewHostPrimaryMove({ siteId:'site1', agentId:'ag1' });
+   */
+  previewHostPrimaryMove({ siteId, agentId }) {
+    return this.sdk._fetch(`/providers/proxmox/sites/${this._s(siteId)}/hosts/${this._a(agentId)}/primary-move`, 'GET');
+  }
+
+  /**
+   * Dry-run the PVE HA hold (enter) or restore (exit) for a connector host.
+   * Does not change HA state and does not set the maintenance flag.
+   * `ha.ok === false` means the HA config could not be read; maintenance can
+   * still be set, and the response carries `ha.warning`.
+   *
+   * @param {object} params
+   * @param {string} params.siteId
+   * @param {string} params.agentId
+   * @returns {Promise<{ maintenance: object|null, ha: object, preview: true }>}
+   */
+  previewHostHaHold({ siteId, agentId }) {
+    return this.sdk._fetch(`/providers/proxmox/sites/${this._s(siteId)}/hosts/${this._a(agentId)}/maintenance`, 'GET', {
+      query: { haPreview: '1' },
+    });
   }
 
   /**
@@ -490,17 +577,27 @@ export class ProxmoxSitesService {
   /**
    * Begin a site-link enrollment — mint the one-line agent-install command.
    *
+   * Omit host identity for the reusable site token (same command, every host).
+   * Pass `agentId` or `hostname` to bootstrap one host that has no agent
+   * channel: the response is a short-lived single-use `token` plus a command
+   * that does not contain the token (the installer prompts for it), and
+   * `expiresAt`. If that host's tunnel is already up, `channel` is `"agent"`
+   * and no token is minted (`command` is null).
+   *
    * @param {object} [params]
    * @param {string} [params.siteId] - Enroll into an existing site (404 if missing).
    * @param {string} [params.alias]
    * @param {string} [params.displayName]
-   * @returns {Promise<{ token: string, expiresAt: string, command: string, zeusUrl: string, siteId: string }>}
+   * @param {string} [params.agentId] - Host to bootstrap. Requires siteId.
+   * @param {string} [params.hostname] - Host to bootstrap when agentId is omitted.
+   * @returns {Promise<{ token?: string, expiresAt: number|null, command: string|null, zeusUrl?: string, siteId: string, agentId?: string, hostname?: string, channel?: 'agent'|'bootstrap', singleUse?: boolean }>}
    * @example
    * const { command } = await sdk.providers.proxmox.sites.linkInit({ alias: 'indy' });
+   * const boot = await sdk.providers.proxmox.sites.linkInit({ siteId: 'indy', agentId: 'h-abc' });
    */
-  linkInit({ siteId, alias, displayName } = {}) {
+  linkInit({ siteId, alias, displayName, agentId, hostname } = {}) {
     return this.sdk._fetch('/providers/proxmox/sites/link/init', 'POST', {
-      body: { siteId, alias, displayName },
+      body: { siteId, alias, displayName, agentId, hostname },
     });
   }
 

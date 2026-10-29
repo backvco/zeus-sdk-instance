@@ -61,6 +61,14 @@ for await (const ev of s) console.log(ev);
 | `provisionDraft({ container, name, branch, ...body })` | `POST /[name]/provision-draft` | **SSE** |
 | `destroyPreview({ container, name, preflight, branch })` | `GET /[name]/destroy` | `{ steps, warnings }` or `{ preview, vpcBundle }` |
 | `destroy({ container, name, branch, ...body })` | `POST /[name]/destroy` | **SSE** (`confirm` must equal cluster name) |
+| `getAutoMovePrimary({ container, name, branch })` | `GET /[name]/auto-move-primary` | `{ mode, cluster, container }` — `off` \| `preview` \| `on`; missing is `preview` |
+| `setAutoMovePrimary({ container, name, mode, branch })` | `PUT /[name]/auto-move-primary` | `{ mode, cluster, container }` |
+| `getFailureDomainRebalance({ container, name, branch })` | `GET /[name]/failure-domain-rebalance` | `{ mode, cluster, container }` — `off` \| `preview` \| `on`; missing is `preview` |
+| `setFailureDomainRebalance({ container, name, mode, branch })` | `PUT /[name]/failure-domain-rebalance` | `{ mode, cluster, container }` |
+| `planQuorumSpread({ container, name, branch })` | `POST /[name]/quorum-spread/plan` | preview JSON. Does not delete a pod |
+| `applyQuorumSpread({ container, name, confirm, planHash, branch })` | `POST /[name]/quorum-spread/apply` | **SSE**. `confirm` must equal the cluster name. `planHash` is single-use |
+| `planQuorumMemberMove({ container, name, groupId, member, branch })` | `POST /[name]/quorum-member/plan` | preview JSON for one named member. Does not delete a pod |
+| `applyQuorumMemberMove({ container, name, groupId, member, confirm, planHash, branch })` | `POST /[name]/quorum-member/apply` | **SSE**. `confirm` must equal the cluster name. `planHash` is single-use |
 
 `dnsAction` action: `'preflight' | 'apply' | 'apply-wildcard'`.
 `provision` body: `roleArn, createRole, subnetIds, securityGroupIds, addons, vpcIngressCidr, vpcBundle, rollbackOnFailure` (+ GKE network fields).
@@ -189,7 +197,7 @@ body; GET/DELETE read it from the query.
 
 | Method | Route | Returns |
 |---|---|---|
-| `status({ container, name, connection, branch })` | `GET /[name]/overlay/status` | `{ persisted, live }` |
+| `status({ container, name, connection, branch })` | `GET /[name]/overlay/status` | `{ persisted, live }` — live router health and failure-domain spread (availability zone or host, from the cluster provider) |
 | `enroll({ container, name, connection, branch, routerSettings })` | `POST /[name]/overlay/enroll` | **SSE** `done {ok,message,overlay}` |
 | `teardown({ container, name, connection, branch })` | `DELETE /[name]/overlay` | **SSE** `done {ok,message,removed}` |
 | `access({ container, name, connection, branch })` | `GET /[name]/overlay/access` | `{ access }` |
@@ -208,6 +216,8 @@ body; GET/DELETE read it from the query.
 | `ingressHosts({ container, name, branch })` | `GET /[name]/overlay/ingress-hosts` | `{ hosts, meshDomain }` |
 | `router({ container, name, branch })` | `GET /[name]/overlay/router` | `{ settings, nodeGroups, ... }` |
 | `setRouter({ container, name, ...body })` | `POST /[name]/overlay/router` | `{ ok, settings }` |
+| `planOverlayDnsPath({ container, name, branch })` | `POST /[name]/overlay-dns/plan` `{ action:'path' }` | Preview. `{ outcome, step, changes, planHash }`. Does not restart or rewrite CoreDNS |
+| `applyOverlayDnsPath({ container, name, confirm, planHash, branch })` | `POST /[name]/overlay-dns/apply` `{ action:'path', dryRun:false }` | `confirm` must equal the cluster name. `planHash` is single-use |
 
 `grantAccess` body: `{ to, ports?, protocol?, bidi?, connection?, branch? }`. `runSpeedtest` body: `{ to, mode, value, probes?, srcNodeGroup?, dstNodeGroup?, connection?, branch? }`.
 
@@ -230,5 +240,16 @@ Arch-taint, Harbor, GKE CSI/access, firewall rules.
 | `grantGkeAccess({ container, name, branch, member, policy })` | `POST /[name]/gke-access` (branch in body) | `{ success, ... }` |
 | `revokeGkeAccess({ container, name, branch, member, principalArn })` | `DELETE /[name]/gke-access` (branch in body) | `{ success, ... }` |
 | `applyFirewallRules({ container, name, branch })` | `POST /[name]/firewall-rules` (branch in body, no query) | `{ ok, applied, message? }` |
+| `workloadOpsPlan({ container, name, action, service, check, node })` | `POST /[name]/node-ops/plan` | preview, including `planHash` when confirm can proceed |
+| `workloadOpsApply({ container, name, action, service, confirm, planHash, dryRun, check, node })` | `POST /[name]/node-ops/apply` | apply result; preview unless `dryRun` is false |
 
-`harborReplicationAction` / `harborRobotAction` are action-dispatched — pass `action` plus that action's fields (see the route source for the full matrix). `archTaintStart` body: `{ acknowledgeIrreversible, preflightResult, branch?, mode?, archOverrides? }`. `enableGkeCsiDriver` `driver`: `'filestore' | 'gcs'`.
+`harborReplicationAction` / `harborRobotAction` are action-dispatched — pass `action` plus that action's fields (see the route source for the full matrix). `archTaintStart` body: `{ acknowledgeIrreversible, preflightResult, branch?, mode?, archOverrides? }`. `enableGkeCsiDriver` `driver`: `'filestore' | 'gcs'`. `workloadOpsPlan` / `workloadOpsApply` `action`: `'role-label-reconcile' | 'readiness-backfill'`. Apply requires `confirm` equal to the cluster name and `planHash` from the plan.
+
+## Node-group shape (#341)
+
+| Method | Route | Returns |
+|---|---|---|
+| `getNodeGroupShape({ container, name, branch })` | `GET /[name]/node-group-shape` | `{ mode, cluster, container }` |
+| `setNodeGroupShape({ container, name, mode, branch })` | `PUT /[name]/node-group-shape` | `{ mode, cluster, container }` |
+
+`mode` is `off`, `preview` (default), or `on`. Setting the mode does not create or destroy a VM.

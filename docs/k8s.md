@@ -135,6 +135,16 @@ For `drain`/`force-drain` use `nodeActionStream`. **`POST /api/k8s/nodes/action`
 await sdk.k8s.nodeAction({ cluster: 'z-01', name: 'ip-10-0-1-5', action: 'cordon' });
 ```
 
+### `previewNodePrimaryMove({ cluster, node })`
+Dry-run the Group Replication primary move a cordon or drain performs first.
+Does not promote. **`GET /api/k8s/nodes/primary-move`**
+- Returns: `{ ok, error, writers, moves, blocked }` — `writers[]` is `{ pod, node, host, onSubject }`
+```js
+const plan = await sdk.k8s.previewNodePrimaryMove({ cluster: 'z-01', node: 'ip-10-0-1-5' });
+```
+
+`cordon` and `drain` / `force-drain` consult the cluster setting `autoMovePrimaryBeforeDrain` (`off` skips, `preview` logs the move and does not promote, `on` promotes and waits). Mode `on` refuses, and does not cordon or drain, when no healthy ONLINE member on another host is caught up. The default is `preview`.
+
 ### `nodeActionStream({ cluster, name, action?, gracePeriodSeconds?, drainBeforeDelete? })` — streaming
 `action` = `'drain'` (default) | `'force-drain'`. Returns an SSE progress stream
 (run-style `info`/`step`/`success`/`error` events). **`POST /api/k8s/nodes/action`**

@@ -290,4 +290,164 @@ export class ClustersService extends ClustersCoreService {
   applyDiff({ container, base, target, rows, branch }) {
     return this.sdk._fetch(`${this._col(container)}/diff`, 'POST', { body: { base, target, rows, branch } });
   }
+
+  /**
+   * Read autoMovePrimaryBeforeDrain for one cluster.
+   * Missing values come back as `preview`.
+   * @param {object} params
+   * @param {string} params.container
+   * @param {string} params.name
+   * @param {string} [params.branch='main']
+   * @returns {Promise<{ mode: 'off'|'preview'|'on', cluster: string, container: string }>}
+   * @example
+   * const { mode } = await sdk.clusters.getAutoMovePrimary({ container:'app1', name:'z-02' });
+   */
+  getAutoMovePrimary({ container, name, branch }) {
+    return this.sdk._fetch(`${this._base(container, name)}/auto-move-primary`, 'GET', { query: { branch } });
+  }
+
+  /**
+   * Set autoMovePrimaryBeforeDrain. `preview` logs the move and does not
+   * promote. `on` promotes before drain or host maintenance. `off` skips it.
+   * @param {object} params
+   * @param {string} params.container
+   * @param {string} params.name
+   * @param {'off'|'preview'|'on'} params.mode
+   * @param {string} [params.branch='main']
+   * @returns {Promise<{ mode: string, cluster: string, container: string }>}
+   * @example
+   * await sdk.clusters.setAutoMovePrimary({ container:'app1', name:'z-02', mode:'on' });
+   */
+  setAutoMovePrimary({ container, name, mode, branch }) {
+    return this.sdk._fetch(`${this._base(container, name)}/auto-move-primary`, 'PUT', { body: { mode }, query: { branch } });
+  }
+
+  /**
+   * Read failureDomainRebalance. Missing values come back as `preview`.
+   * @param {object} params
+   * @param {string} params.container
+   * @param {string} params.name
+   * @param {string} [params.branch='main']
+   * @returns {Promise<{ mode: 'off'|'preview'|'on', cluster: string, container: string }>}
+   */
+  getFailureDomainRebalance({ container, name, branch }) {
+    return this.sdk._fetch(`${this._base(container, name)}/failure-domain-rebalance`, 'GET', { query: { branch } });
+  }
+
+  /**
+   * Set failureDomainRebalance. `preview` records a one-member reschedule and
+   * does not evict. `on` reschedules that member. `off` only alerts.
+   * @param {object} params
+   * @param {string} params.container
+   * @param {string} params.name
+   * @param {'off'|'preview'|'on'} params.mode
+   * @param {string} [params.branch='main']
+   */
+  setFailureDomainRebalance({ container, name, mode, branch }) {
+    return this.sdk._fetch(`${this._base(container, name)}/failure-domain-rebalance`, 'PUT', { body: { mode }, query: { branch } });
+  }
+
+  /**
+   * Preview a quorum-spread rebalance. Does not delete a pod.
+   * Apply with {@link applyQuorumSpread}.
+   * @param {object} params
+   * @param {string} params.container
+   * @param {string} params.name
+   * @param {string} [params.branch]
+   * @returns {Promise<{ ok: boolean, dryRun: true, planHash: string|null, steps: object[], safe: boolean }>}
+   * @example
+   * const preview = await sdk.clusters.planQuorumSpread({ container:'app1', name:'z-02' });
+   */
+  planQuorumSpread({ container, name, branch }) {
+    return this.sdk._fetch(`${this._base(container, name)}/quorum-spread/plan`, 'POST', { body: {}, query: { branch } });
+  }
+
+  /**
+   * Apply a previewed quorum-spread rebalance. `confirm` must equal the cluster
+   * name. `planHash` is the single-use token from {@link planQuorumSpread}.
+   * @param {object} params
+   * @param {string} params.container
+   * @param {string} params.name
+   * @param {string} params.confirm
+   * @param {string} params.planHash
+   * @param {string} [params.branch]
+   * @returns {ReturnType<import('../base.js').BaseSDK['_stream']>} SSE stream.
+   * @example
+   * const stream = sdk.clusters.applyQuorumSpread({ container:'app1', name:'z-02', confirm:'z-02', planHash });
+   */
+  applyQuorumSpread({ container, name, confirm, planHash, branch }) {
+    return this.sdk._stream(`${this._base(container, name)}/quorum-spread/apply`, 'POST', {
+      body: { dryRun: false, confirm, planHash },
+      query: { branch }
+    });
+  }
+
+  /**
+   * Preview one named quorum-member move. Does not delete a pod.
+   * `groupId` is the catalog group id (`keeper/<namespace>/<release>`, and the
+   * same shape for MySQL, NATS, and Valkey). `member` is the pod name.
+   * @param {object} params
+   * @param {string} params.container
+   * @param {string} params.name
+   * @param {string} params.groupId
+   * @param {string} params.member
+   * @param {string} [params.branch]
+   * @returns {Promise<{ ok: boolean, action: string, planHash: string|null, steps: object[], safe: boolean }>}
+   * @example
+   * await sdk.clusters.planQuorumMemberMove({ container:'app1', name:'z-02', groupId:'keeper/db/chi', member:'keeper-1' });
+   */
+  planQuorumMemberMove({ container, name, groupId, member, branch }) {
+    return this.sdk._fetch(`${this._base(container, name)}/quorum-member/plan`, 'POST', {
+      body: { groupId, member },
+      query: { branch }
+    });
+  }
+
+  /**
+   * Apply a previewed quorum-member move. `confirm` must equal the cluster
+   * name. `planHash` is the single-use token from {@link planQuorumMemberMove}.
+   * @param {object} params
+   * @param {string} params.container
+   * @param {string} params.name
+   * @param {string} params.groupId
+   * @param {string} params.member
+   * @param {string} params.confirm
+   * @param {string} params.planHash
+   * @param {string} [params.branch]
+   * @returns {ReturnType<import('../base.js').BaseSDK['_stream']>} SSE stream.
+   * @example
+   * const stream = sdk.clusters.applyQuorumMemberMove({ container:'app1', name:'z-02', groupId:'keeper/db/chi', member:'keeper-1', confirm:'z-02', planHash });
+   */
+  applyQuorumMemberMove({ container, name, groupId, member, confirm, planHash, branch }) {
+    return this.sdk._stream(`${this._base(container, name)}/quorum-member/apply`, 'POST', {
+      body: { groupId, member, dryRun: false, confirm, planHash },
+      query: { branch }
+    });
+  }
+
+  /**
+   * Read nodeGroupShape. Missing values come back as `preview`.
+   * Preview plans per-host VM targets and does not create or destroy a VM.
+   * @param {object} params
+   * @param {string} params.container
+   * @param {string} params.name
+   * @param {string} [params.branch='main']
+   * @returns {Promise<{ mode: 'off'|'preview'|'on', cluster: string, container: string }>}
+   */
+  getNodeGroupShape({ container, name, branch }) {
+    return this.sdk._fetch(`${this._base(container, name)}/node-group-shape`, 'GET', { query: { branch } });
+  }
+
+  /**
+   * Set nodeGroupShape. `off` skips the planner. `preview` records the plan.
+   * `on` allows one VM change per sweep. Does not itself create a VM.
+   * @param {object} params
+   * @param {string} params.container
+   * @param {string} params.name
+   * @param {'off'|'preview'|'on'} params.mode
+   * @param {string} [params.branch='main']
+   */
+  setNodeGroupShape({ container, name, mode, branch }) {
+    return this.sdk._fetch(`${this._base(container, name)}/node-group-shape`, 'PUT', { body: { mode }, query: { branch } });
+  }
 }

@@ -51,4 +51,47 @@ export class GlobalEndpointsService {
   externalStatus({ name } = {}) {
     return this.sdk._fetch(`/global-endpoints/${this._n(name)}/external/status`, 'GET');
   }
+
+  /**
+   * Instance HTTP prober settings: probe regions, interval, and how many
+   * consecutive all-region failures raise the public-endpoint-down alert.
+   * `effective` is the resolved values (config, else fleet regions, else defaults).
+   *
+   * @returns {Promise<{ settings: object, effective: { regions: string[], intervalSec: number, consecutiveFailures: number }, defaults: object, limits: object }>}
+   * @example
+   * const { effective } = await sdk.globalEndpoints.httpProber();
+   */
+  httpProber() {
+    return this.sdk._fetch('/global-endpoints/http-prober', 'GET');
+  }
+
+  /**
+   * Update instance HTTP prober settings. Only keys present in `body` are
+   * written; `null` clears a field back to the default. The server rejects
+   * an interval outside 15..3600, a consecutiveFailures outside 1..20, and
+   * region ids that are malformed, duplicated, or not in the live fleet.
+   *
+   * @param {object} body
+   * @param {string[]|null} [body.regions]
+   * @param {number|null} [body.intervalSec]
+   * @param {number|null} [body.consecutiveFailures]
+   * @returns {Promise<{ settings: object, effective: object, defaults: object, limits: object }>}
+   * @example
+   * await sdk.globalEndpoints.setHttpProber({ regions: ['us-east', 'eu-west'], intervalSec: 30 });
+   */
+  setHttpProber(body = {}) {
+    return this.sdk._fetch('/global-endpoints/http-prober', 'PUT', { body });
+  }
+
+  /**
+   * Prober status for every published global endpoint, including the probe
+   * regions and interval actually in effect (`probeRegions`, `probeIntervalSec`).
+   *
+   * @returns {Promise<Record<string, object>>}
+   * @example
+   * const status = await sdk.globalEndpoints.vantageStatus();
+   */
+  vantageStatus() {
+    return this.sdk._fetch('/global-endpoints/vantage-status', 'GET');
+  }
 }

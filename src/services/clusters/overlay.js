@@ -25,7 +25,9 @@ export class ClusterOverlayService {
   }
 
   /**
-   * Persisted + live overlay status.
+   * Persisted + live overlay status, including router pod health and
+   * failure-domain spread. The failure domain is an availability zone or a
+   * host, taken from the cluster provider.
    * @param {object} params - container, name, connection? (def 'overlay'), branch.
    * @returns {Promise<{ persisted, live, liveError? }>}
    * @example const { live } = await sdk.clusters.overlay.status({ container:'app1', name:'z-01' });
@@ -279,6 +281,30 @@ export class ClusterOverlayService {
    */
   setRouter({ container, name, ...body }) {
     return this.sdk._fetch(`${this._base(container, name)}/overlay/router`, 'POST', { body });
+  }
+
+  /**
+   * Preview the overlay-DNS tunnel-path step (restart overlay DNS, then re-apply
+   * the CoreDNS forward). Does not mutate.
+   * @param {object} params - container, name, branch?.
+   * @returns {Promise<{ ok, applied:false, outcome, step, changes, planHash, confirmExpected }>}
+   * @example const plan = await sdk.clusters.overlay.planOverlayDnsPath({ container:'app1', name:'lab-a' });
+   */
+  planOverlayDnsPath({ container, name, branch }) {
+    return this.sdk._fetch(`${this._base(container, name)}/overlay-dns/plan`, 'POST', { body: { action: 'path', branch } });
+  }
+
+  /**
+   * Apply a previewed overlay-DNS path step. `confirm` must equal the cluster
+   * name. `planHash` is the single-use token from planOverlayDnsPath.
+   * @param {object} params - container, name, confirm, planHash, branch?.
+   * @returns {Promise<{ ok, applied, outcome, step, reason? }>}
+   * @example await sdk.clusters.overlay.applyOverlayDnsPath({ container:'app1', name:'lab-a', confirm:'lab-a', planHash: plan.planHash });
+   */
+  applyOverlayDnsPath({ container, name, confirm, planHash, branch }) {
+    return this.sdk._fetch(`${this._base(container, name)}/overlay-dns/apply`, 'POST', {
+      body: { action: 'path', dryRun: false, confirm, planHash, branch }
+    });
   }
 
   /**

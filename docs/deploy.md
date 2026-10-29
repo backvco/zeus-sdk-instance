@@ -6,7 +6,15 @@ Non-container-scoped v2configs **utility** endpoints. They don't live under
 pipeline, shared config/env-file layers, node-group user-data preview, MySQL
 replication, GitHub import, IAM/GCP identity catalogs, and a CIDR check.
 
-Methods throw `ZeusApiError` on HTTP 4xx/5xx. Streaming methods return an SSE
+Methods throw `ZeusApiError` on HTTP 4xx/5xx (`status`, `endpoint`, `method`,
+`requestId` from `x-request-id`). Idempotent reads — including `status` and
+read-only `statusAction`s — retry HTTP 502/503 and connection resets up to
+3 times with exponential backoff and jitter. A 504 is retried at most once.
+Mutating calls (`deploy`,
+`restart-service`, `scale-service`, `delete-service`, `retry-public-access`,
+apply/uninstall) are not retried.
+
+Streaming methods return an SSE
 stream handle from `openStream` (async-iterable + `onOpen/onMessage/onError/onDone`
 + `close()`); each event is `{ type, data, raw }`.
 
@@ -29,12 +37,21 @@ const st = await sdk.deploy.status({ container: 'app1', envName: 'prod', cluster
 ### `statusAction(body)`
 Escape hatch for the deploy/status `action` dispatcher (`secret-value`,
 `ensure-namespaces`, `apply-secrets`, `generate-service`, `apply-services`,
-`service-pods`, `check-drift`, `restart-service`, `scale-service`,
-`delete-service`, `uninstall-preview`, `uninstall-service`, `list-crons`,
-`trigger-cron`, `cron-job-logs`). **`POST /api/v2configs/deploy/status`**
+`service-pods`, `check-drift`, `restart-service`, `retry-public-access`,
+`scale-service`, `delete-service`, `uninstall-preview`, `uninstall-service`,
+`list-crons`, `trigger-cron`, `cron-job-logs`). **`POST /api/v2configs/deploy/status`**
 - Returns: action-specific object
 ```js
 const { pods } = await sdk.deploy.statusAction({ action: 'service-pods', container: 'app1', envName: 'prod', clusterName: 'z-01', namespace: 'default', serviceNames: ['api'] });
+```
+
+### `retryPublicAccess({ container, clusterName, namespace, envName?, serviceName?, podName?, branch? })`
+Re-run the public-access (static WAN IP) claim for live pods. Re-reads each pod and unsticks a hung claim queue. **`POST /api/v2configs/deploy/status`** action `retry-public-access`. Requires `instance:clusters:manage`.
+- Returns: `{ ok, action: 'retry-public-access', results: Array<{ pod, ok, reason, requeued, ip, allocation }> }`
+```js
+const { results } = await sdk.deploy.retryPublicAccess({
+  container: 'app1', clusterName: 'z-02', namespace: 'd00', envName: 'dev-d00', serviceName: 'sip',
+});
 ```
 
 ### `dryRunWrite({ container, envName, clusterName, branch? })`

@@ -53,6 +53,9 @@ export class DeployService {
    * Live deploy status for an env on a cluster — namespace existence, secret
    * presence + drift, and per-service workload health (with a cheap config-hash
    * drift check). Dispatches the route's default `handleStatus` action.
+   * This call is idempotent: a transient HTTP 502/503 or connection reset
+   * is retried (up to 3 attempts). A 504 is retried at most once.
+   * Mutating `statusAction`s are not.
    *
    * @param {object} params
    * @param {string} params.container
@@ -79,8 +82,12 @@ export class DeployService {
    * (`secret-value`, `ensure-namespaces`, `apply-secrets`, `generate-service`,
    * `apply-services`, `service-pods`, `check-drift`, `restart-service`,
    * `scale-service`, `delete-service`, `uninstall-preview`, `uninstall-service`,
-   * `list-crons`, `trigger-cron`, `cron-job-logs`). Pass `action` + that
-   * action's fields; the response shape varies per action.
+   * `list-crons`, `trigger-cron`, `cron-job-logs`, `retry-public-access`).
+   * Pass `action` + that action's fields; the response shape varies per action.
+   * Read actions (`service-pods`, `check-drift`, …) retry transient gateway
+   * failures. Mutations (`restart-service`, `scale-service`, `delete-service`,
+   * `apply-services`, `retry-public-access`, …) are never retried.
+   * Prefer `retryPublicAccess()` over the raw `retry-public-access` action.
    *
    * @param {object} body - Must include `action` and the action's params (always `container`).
    * @returns {Promise<object>} Action-specific response.
@@ -92,6 +99,38 @@ export class DeployService {
    */
   statusAction(body) {
     return this.sdk._fetch('/v2configs/deploy/status', 'POST', { body });
+  }
+
+  /**
+   * Re-run the public-access (static WAN IP) claim for a service's live pods.
+   * Re-reads each pod, abandons a hung per-service or per-account claim queue,
+   * and reconciles. Use when a pod is stuck waiting on `/etc/zeus/public-ip`.
+   *
+   * **`POST /api/v2configs/deploy/status`** action `retry-public-access`.
+   * Requires `instance:clusters:manage`.
+   *
+   * @param {object} params
+   * @param {string} params.container
+   * @param {string} params.clusterName
+   * @param {string} params.namespace
+   * @param {string} [params.envName] Required together with `serviceName` when `podName` is omitted.
+   * @param {string} [params.serviceName]
+   * @param {string} [params.podName] Retry one pod instead of every public-access pod of the service.
+   * @param {string} [params.branch='main']
+   * @returns {Promise<{ ok: boolean, action: 'retry-public-access', results: Array<{ pod, ok, reason, requeued, ip, allocation }> }>}
+   * @example
+   * const { results } = await sdk.deploy.retryPublicAccess({
+   *   container: 'app1', clusterName: 'z-02', namespace: 'd00',
+   *   envName: 'dev-d00', serviceName: 'sip',
+   * });
+   */
+  retryPublicAccess({ container, clusterName, namespace, envName, serviceName, podName, branch }) {
+    return this.sdk._fetch('/v2configs/deploy/status', 'POST', {
+      body: {
+        action: 'retry-public-access',
+        container, clusterName, namespace, envName, serviceName, podName, branch,
+      },
+    });
   }
 
   /**

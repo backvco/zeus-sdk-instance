@@ -1,6 +1,12 @@
 // @ts-nocheck
-import { ZeusApiError, ReachabilityAckRequiredError } from './errors.js';
+import { ZeusApiError, ReachabilityAckRequiredError, formatApiErrorMessage } from './errors.js';
 import { openStream } from './stream.js';
+import {
+  isIdempotentCall,
+  isRetryableNetworkError,
+  newRequestId,
+  withTransientRetry,
+} from './retry.js';
 
 /**
  * BaseSDK — low-level HTTP + SSE transport shared by every service namespace.
@@ -44,8 +50,9 @@ export class BaseSDK {
    * @param {string} [opts.token]    - Service token ("zeus_...") → Authorization: Bearer.
    * @param {string} [opts.devKey]   - Dev API key → x-dev-key header.
    * @param {typeof fetch} [opts.fetch] - Injected fetch (SvelteKit `event.fetch`, tests).
+   * @param {object} [opts.retry] - Override transient-retry timing (tests). Production uses 3 attempts (a 504 is retried at most once), 200ms base, 2s cap.
    */
-  constructor({ baseURL, instance, rootUrl, token, devKey, fetch: fetchImpl } = {}) {
+  constructor({ baseURL, instance, rootUrl, token, devKey, fetch: fetchImpl, retry } = {}) {
     const isBrowser = typeof window !== 'undefined';
     const envRoot = typeof process !== 'undefined' && process.env ? process.env.ZEUS_ROOT_URL : undefined;
 
@@ -67,6 +74,13 @@ export class BaseSDK {
     this.devKey = devKey || null;
     this.fetchImpl = fetchImpl || (typeof fetch !== 'undefined' ? fetch : null);
     this.debugMode = false;
+    this.retry = {
+      maxAttempts: 3,
+      baseDelayMs: 200,
+      maxDelayMs: 2000,
+      random: Math.random,
+      ...(retry && typeof retry === 'object' ? retry : {}),
+    };
   }
 
   /**
@@ -102,6 +116,13 @@ export class BaseSDK {
    *
    * On HTTP 4xx/5xx it throws a {@link ZeusApiError} (or
    * {@link ReachabilityAckRequiredError} for a 412 `requiresAcknowledgement`).
+   * The error carries `status`, `endpoint`, `method`, and `requestId`
+   * (`x-request-id`). Gateway failures (502/503) and connection resets are
+   * retried up to 3 times with exponential backoff and jitter only when the
+   * call is idempotent — GET/HEAD/OPTIONS, `idempotent: true`, or a known
+   * read POST such as `deploy.status`. A 504 is retried at most once.
+   * Mutating calls are never retried. Pass `idempotent: false` to opt a
+   * safe method out.
    *
    * @param {string} endpoint  - Path relative to baseURL, e.g. "/v2configs/containers".
    * @param {string} method    - "GET" | "POST" | "PUT" | "PATCH" | "DELETE".
@@ -110,6 +131,7 @@ export class BaseSDK {
    * @param {object} [opts.query]   - Query params. Array values become repeated keys.
    * @param {object} [opts.headers] - Extra headers merged over defaults.
    * @param {AbortSignal} [opts.signal] - Optional abort signal (timeouts / cancellation).
+   * @param {boolean} [opts.idempotent] - Force retry on (true) or off (false). Default is derived from the method and, for a few read POSTs, the path/action.
    * @returns {Promise<*>} Parsed JSON (or text) response body.
    *
    * @example
@@ -120,7 +142,36 @@ export class BaseSDK {
    * const ac = new AbortController();
    * sdk._fetch('/aws/ec2', 'GET', { query: { resource: 'vpcs' }, signal: ac.signal });
    */
-  async _fetch(endpoint, method, { body, query, headers = {}, signal } = {}) {
+  async _fetch(endpoint, method, opts = {}) {
+    const headers = { ...(opts.headers || {}) };
+    const requestId = headerValue(headers, 'x-request-id') || newRequestId();
+    headers['x-request-id'] = requestId;
+    const idempotent = isIdempotentCall(method, endpoint, opts);
+    return withTransientRetry({
+      idempotent,
+      maxAttempts: this.retry.maxAttempts,
+      baseDelayMs: this.retry.baseDelayMs,
+      maxDelayMs: this.retry.maxDelayMs,
+      random: this.retry.random,
+      signal: opts.signal,
+      run: () => this._fetchOnce(endpoint, method, { ...opts, headers, requestId }),
+      onGiveUp: (err) => {
+        if (!isRetryableNetworkError(err)) return err;
+        return new ZeusApiError(
+          formatApiErrorMessage(err.message || 'request failed', {
+            endpoint, method, requestId, network: true,
+          }),
+          { endpoint, method, requestId, cause: err },
+        );
+      },
+    });
+  }
+
+  /**
+   * Single attempt. Retry policy lives in {@link _fetch}.
+   * @private
+   */
+  async _fetchOnce(endpoint, method, { body, query, headers = {}, signal, requestId } = {}) {
     const url = this._url(endpoint, query);
     const h = this._authHeaders(headers);
     const hasBody = body !== undefined && method.toUpperCase() !== 'GET';
@@ -143,10 +194,19 @@ export class BaseSDK {
       if (res.status === 412 && errBody && errBody.requiresAcknowledgement) {
         throw new ReachabilityAckRequiredError(errBody);
       }
-      throw new ZeusApiError(
-        (errBody && (errBody.error || errBody.message)) || `HTTP ${res.status}`,
-        { status: res.status, body: errBody, endpoint, method },
-      );
+      const serverMessage = (errBody && (errBody.error || errBody.message)) || `HTTP ${res.status}`;
+      const empty = errBody == null
+        || (typeof errBody === 'string' && !errBody.trim())
+        || (typeof errBody === 'object' && !errBody.error && !errBody.message);
+      const echoed = responseRequestId(res) || requestId;
+      const message = (res.status >= 500 || empty)
+        ? formatApiErrorMessage(serverMessage, {
+          status: res.status, endpoint, method, requestId: echoed,
+        })
+        : serverMessage;
+      throw new ZeusApiError(message, {
+        status: res.status, body: errBody, endpoint, method, requestId: echoed,
+      });
     }
     return parse();
   }
@@ -248,6 +308,27 @@ export class BaseSDK {
       if (qs) url += `?${qs}`;
     }
     return url;
+  }
+}
+
+// The in-repo installer checks this so it does not wrap a client that already retries.
+BaseSDK.prototype._fetch.transientRetry = true;
+
+function headerValue(headers, name) {
+  if (!headers || typeof headers !== 'object') return null;
+  if (headers[name]) return headers[name];
+  const found = Object.keys(headers).find((k) => k.toLowerCase() === name);
+  return found ? headers[found] : null;
+}
+
+function responseRequestId(res) {
+  try {
+    const value = res?.headers?.get?.('x-request-id');
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    return /^[A-Za-z0-9._:-]{8,128}$/.test(trimmed) ? trimmed : null;
+  } catch {
+    return null;
   }
 }
 

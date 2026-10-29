@@ -115,9 +115,9 @@ export class SystemService {
    *
    * @param {object} [opts]
    * @param {AbortSignal} [opts.signal] - Optional abort signal (timeouts / cancellation).
-   * @returns {Promise<{ current: string, latest: string | null, updateAvailable: boolean }>}
+   * @returns {Promise<{ current: string, latest: string | null, notes: string | null, updateAvailable: boolean }>}
    * @example
-   * const { current, latest, updateAvailable } = await sdk.system.version();
+   * const { current, latest, notes, updateAvailable } = await sdk.system.version();
    */
   version({ signal } = {}) { return this.sdk._fetch('/system/version', 'GET', { signal }); }
 
@@ -136,6 +136,47 @@ export class SystemService {
    * const { started, pending, deadline } = await sdk.system.upgrade();
    */
   upgrade() { return this.sdk._fetch('/system/upgrade', 'POST'); }
+
+  /**
+   * Preview a self-upgrade. Shows the running version, the published target,
+   * release notes, and preflight checks. Does not start an upgrade. A safe
+   * preview returns `planHash` and `confirmName`.
+   *
+   * @param {object} [params]
+   * @param {string} [params.target] - Must equal the published latest. Omit to use it.
+   * @param {boolean} [params.overridePreflight] - Issue a token even when preflight failed.
+   * @returns {Promise<{ ok: boolean, applied: false, confirmName: string|null, current: string|null, target: string|null, notes: string|null, preflight: object, planHash: string|null }>}
+   * @example
+   * const preview = await sdk.system.previewUpgrade();
+   */
+  previewUpgrade({ target, overridePreflight } = {}) {
+    const body = {};
+    if (target != null) body.target = target;
+    if (overridePreflight === true) body.overridePreflight = true;
+    return this.sdk._fetch('/system/upgrade/plan', 'POST', { body });
+  }
+
+  /**
+   * Start a previewed self-upgrade. `confirm` must equal `confirmName` from
+   * {@link previewUpgrade}. `planHash` is that preview's single-use token.
+   * Refuses a stale plan, an invalid target, or an upgrade already in progress.
+   *
+   * @param {object} params
+   * @param {string} params.confirm - Instance name from the preview.
+   * @param {string} params.planHash - Token from {@link previewUpgrade}.
+   * @param {string} [params.target]
+   * @param {boolean} [params.overridePreflight] - Must match the preview that issued the token.
+   * @returns {Promise<{ ok: boolean, applied: boolean, started?: boolean, pending?: boolean, deadline?: string|null }>}
+   * @example
+   * const preview = await sdk.system.previewUpgrade();
+   * await sdk.system.applyUpgrade({ confirm: preview.confirmName, planHash: preview.planHash });
+   */
+  applyUpgrade({ confirm, planHash, target, overridePreflight } = {}) {
+    const body = { dryRun: false, confirm, planHash };
+    if (target != null) body.target = target;
+    if (overridePreflight === true) body.overridePreflight = true;
+    return this.sdk._fetch('/system/upgrade/apply', 'POST', { body });
+  }
 
   /**
    * Get the current instance-wide pending-upgrade countdown state (in-memory,
